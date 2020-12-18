@@ -93,13 +93,23 @@ Section machine_section.
       let* a := pop64 in
       put' PC (toB64 a);
 
-    oneStep' JUMP_ZERO :=
+    oneStep' JZ_FWD :=
         let* o := next 1 in
         let* x := pop64 in
         (if (decide (x = 0 :> Z))
          then
            let* pc := get' PC in
            put' PC (offset o pc)
+         else
+           ret tt);
+
+    oneStep' JZ_BACK :=
+        let* o := next 1 in
+        let* x := pop64 in
+        (if (decide (x = 0 :> Z))
+         then
+           let* pc := get' PC in
+           put' PC (offset (-(1 + o)) pc)
          else
            ret tt);
 
@@ -133,18 +143,6 @@ Section machine_section.
     oneStep' PUSH8 :=
         let* x := next 8 in
         pushZ x;
-
-    oneStep' SIGX1 :=
-        let* x := pop64 in
-        pushZ (bitsToZ (toB8 x));
-
-    oneStep' SIGX2 :=
-        let* x := pop64 in
-        pushZ (bitsToZ (toB16 x));
-
-    oneStep' SIGX4 :=
-        let* x := pop64 in
-        pushZ (bitsToZ (toB32 x));
 
     oneStep' LOAD1 :=
         let* a := pop64 in
