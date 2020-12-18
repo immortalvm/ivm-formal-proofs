@@ -1,4 +1,4 @@
-From Assembly Require Import Init Binary.
+From iVM Require Import Init Binary.
 
 Unset Suggest Proof Using.
 

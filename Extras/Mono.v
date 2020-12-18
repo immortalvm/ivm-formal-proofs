@@ -1,4 +1,4 @@
-From Assembly Require Export RelExtras MachineExtras StateRel.
+From iVM Require Export Extras.Rel Extras.Machine StateRel.
 Require Import Coq.Logic.ProofIrrelevance.
 
 Instance MP1 : MachineParams1 := concreteParams1.

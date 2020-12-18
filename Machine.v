@@ -1,5 +1,5 @@
-From Assembly Require Export Operations Binary.
-Require Assembly.OpCodes.
+From iVM Require Export Operations Binary.
+Require iVM.OpCodes.
 
 Unset Suggest Proof Using.
 

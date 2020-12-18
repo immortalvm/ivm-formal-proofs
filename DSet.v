@@ -1,4 +1,4 @@
-From Assembly Require Import Init.
+From iVM Require Import Init.
 
 Unset Suggest Proof Using.
 

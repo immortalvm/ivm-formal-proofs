@@ -1,4 +1,4 @@
-From Assembly Require Export Machine Rel.
+From iVM Require Export Machine Rel.
 Require Import Coq.Logic.ProofIrrelevance.
 
 Unset Suggest Proof Using.
