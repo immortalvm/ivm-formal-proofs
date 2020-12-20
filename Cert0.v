@@ -602,6 +602,8 @@ Proof.
   - exact Cv.
 Qed.
 
+Definition nCertN n {X} (mx: M X) := nCert n (mx;; not_terminated).
+
 
 (** *** Asserting next operations and move PC *)
 
@@ -742,9 +744,8 @@ Proposition cert_EXIT : nCert 1 (swallow [EXIT];;
                            terminated).
 Proof. cert_start. Qed.
 
-Proposition cert_NOP : nCert 1 (swallow [NOP];;
-  not_terminated).
-Proof. cert_start. Qed.
+Proposition cert_NOP : nCertN 1 (swallow [NOP]).
+Proof. unfold nCertN. cert_start. Qed.
 
 (**********************)
 
@@ -794,10 +795,9 @@ Qed.
 (* TODO: Expand and maybe move *)
 Ltac binary_simpl_tac :=
   unfold cells_to_bytes;
+  try simp map;
   try rewrite id_equation_1;
-  try rewrite bytesToBits_equation_3
-  (* ; try rewrite ofN_bitsToN *)
-  .
+  try rewrite bytesToBits_equation_3.
 
 Lemma swallow_step_lemma n op n' (ops: vector Z n') mb
     (Hop: isStdOp op)
@@ -833,6 +833,27 @@ Proof.
   exact H.
 Qed.
 
+Corollary swallow_step_lemma_N n op n' (ops: vector Z n') X (mx: M X)
+  (Hop: isStdOp op)
+  (H: swallow ops;; mx;; not_terminated ⊑ oneStep' op;; nSteps n) :
+  nCertN (S n) (swallow (op :: ops);; mx).
+Proof.
+  unfold nCertN.
+  smon_rewrite.
+  apply swallow_step_lemma; assumption.
+Qed.
+
+Corollary swallow_step_lemma_N' n op X (mx: M X)
+  (Hop: isStdOp op)
+  (H: mx;; not_terminated ⊑ oneStep' op;; nSteps n) :
+  nCertN (S n) (swallow [op];; mx).
+Proof.
+  apply swallow_step_lemma_N; [ exact Hop | ].
+  simp swallow.
+  smon_rewrite.
+  exact H.
+Qed.
+
 
 (* TODO: Move? *)
 Proposition bind_ret_helper {X Y Z} {mx: M X} {y: Y} {f: Y -> M Z} :
@@ -841,7 +862,7 @@ Proof.
   rewrite bind_assoc, ret_bind. reflexivity.
 Qed.
 
-
+(* TODO: Remove? *)
 Proposition not_terminated_helper X (mx: M X) Y (f: X -> M Y) :
   let* x := mx in
   let* y := f x in
@@ -852,256 +873,223 @@ Proof.
 Qed.
 
 Ltac swallow1_tac :=
-  apply swallow_step_lemma';
+  unfold nCertN;
+  apply swallow_step_lemma_N';
   [ exact I | ];
   simp nSteps;
-  repeat setoid_rewrite not_terminated_helper;
   apply (bind_propr _ _ _);
   [ simp oneStep' |  ];
   crush.
 
 (** ** Instructions with no operands *)
 
-Proposition cert_JUMP : nCert 1 (
+Proposition cert_JUMP : nCertN 1 (
   swallow [JUMP];;
   let* a := pop64 in
-  put' PC a;;
-  not_terminated).
+  put' PC a).
 Proof. swallow1_tac. Qed.
 
-Proposition cert_SET_SP : nCert 1 (
+Proposition cert_SET_SP : nCertN 1 (
   swallow [SET_SP];;
   let* a := pop64 in
-  put' SP a;;
-  not_terminated).
+  put' SP a).
 Proof. swallow1_tac. Qed.
 
-Proposition cert_GET_PC : nCert 1 (
+Proposition cert_GET_PC : nCertN 1 (
   swallow [GET_PC];;
   let* a := get' PC in
-  pushZ a;;
-  not_terminated).
+  pushZ a).
 Proof. swallow1_tac. Qed.
 
-Proposition cert_GET_SP : nCert 1 (
+Proposition cert_GET_SP : nCertN 1 (
   swallow [GET_SP];;
   let* a := get' SP in
-  pushZ a;;
-  not_terminated).
+  pushZ a).
 Proof. swallow1_tac. Qed.
 
-Proposition cert_LOAD1 : nCert 1 (
+Proposition cert_LOAD1 : nCertN 1 (
   swallow [LOAD1];;
   let* a := pop64 in
   let* x := loadMany 1 a in
-  pushZ x;;
-  not_terminated).
+  pushZ x).
 Proof. swallow1_tac. Qed.
 
-Proposition cert_LOAD2 : nCert 1 (
+Proposition cert_LOAD2 : nCertN 1 (
   swallow [LOAD2];;
   let* a := pop64 in
   let* x := loadMany 2 a in
-  pushZ x;;
-  not_terminated).
+  pushZ x).
 Proof. swallow1_tac. Qed.
 
-Proposition cert_LOAD4 : nCert 1 (
+Proposition cert_LOAD4 : nCertN 1 (
   swallow [LOAD4];;
   let* a := pop64 in
   let* x := loadMany 4 a in
-  pushZ x;;
-  not_terminated).
+  pushZ x).
 Proof. swallow1_tac. Qed.
 
-Proposition cert_LOAD8 : nCert 1 (
+Proposition cert_LOAD8 : nCertN 1 (
   swallow [LOAD8];;
   let* a := pop64 in
   let* x := loadMany 8 a in
-  pushZ x;;
-  not_terminated).
+  pushZ x).
 Proof. swallow1_tac. Qed.
 
-Proposition cert_STORE1 : nCert 1 (
+Proposition cert_STORE1 : nCertN 1 (
   swallow [STORE1];;
   let* a := pop64 in
   let* x := pop64 in
-  storeZ 1 a x;;
-  not_terminated).
+  storeZ 1 a x).
 Proof. swallow1_tac. Qed.
 
-Proposition cert_STORE2 : nCert 1 (
+Proposition cert_STORE2 : nCertN 1 (
   swallow [STORE2];;
   let* a := pop64 in
   let* x := pop64 in
-  storeZ 2 a x;;
-  not_terminated).
+  storeZ 2 a x).
 Proof. swallow1_tac. Qed.
 
-Proposition cert_STORE4 : nCert 1 (
+Proposition cert_STORE4 : nCertN 1 (
   swallow [STORE4];;
   let* a := pop64 in
   let* x := pop64 in
-  storeZ 4 a x;;
-  not_terminated).
+  storeZ 4 a x).
 Proof. swallow1_tac. Qed.
 
-Proposition cert_STORE8 : nCert 1 (
+Proposition cert_STORE8 : nCertN 1 (
   swallow [STORE8];;
   let* a := pop64 in
   let* x := pop64 in
-  storeZ 8 a x;;
-  not_terminated).
+  storeZ 8 a x).
 Proof. swallow1_tac. Qed.
 
-Proposition cert_ADD : nCert 1 (
+Proposition cert_ADD : nCertN 1 (
   swallow [ADD];;
   let* x := pop64 in
   let* y := pop64 in
-  pushZ (x + y);;
-  not_terminated).
+  pushZ (x + y)).
 Proof. swallow1_tac. Qed.
 
-Proposition cert_MULT : nCert 1 (
+Proposition cert_MULT : nCertN 1 (
   swallow [MULT];;
   let* x := pop64 in
   let* y := pop64 in
-  pushZ (x * y);;
-  not_terminated).
+  pushZ (x * y)).
 Proof. swallow1_tac. Qed.
 
-Proposition cert_DIV : nCert 1 (
+Proposition cert_DIV : nCertN 1 (
   swallow [DIV];;
   let* x := pop64 in
   let* y := pop64 in
-  pushZ (if decide (x = 0 :> Z) then 0 else y / x);;
-  not_terminated).
+  pushZ (if decide (x = 0 :> Z) then 0 else y / x)).
 Proof. swallow1_tac. Qed.
 
-Proposition cert_REM : nCert 1 (
+Proposition cert_REM : nCertN 1 (
   swallow [REM];;
   let* x := pop64 in
   let* y := pop64 in
-  pushZ (if decide (x = 0 :> Z) then 0 else y mod x);;
-  not_terminated).
+  pushZ (if decide (x = 0 :> Z) then 0 else y mod x)).
 Proof. swallow1_tac. Qed.
 
-Proposition cert_LT : nCert 1 (
+Proposition cert_LT : nCertN 1 (
   swallow [LT];;
   let* x := pop64 in
   let* y := pop64 in
-  pushZ (if decide (y < x) then -1 else 0);;
-  not_terminated).
+  pushZ (if decide (y < x) then -1 else 0)).
 Proof. swallow1_tac. Qed.
 
-Proposition cert_AND : nCert 1 (
+Proposition cert_AND : nCertN 1 (
   swallow [AND];;
   let* x := pop64 in
   let* y := pop64 in
-  pushZ (Vector.map2 andb x y : B64);;
-  not_terminated).
+  pushZ (Vector.map2 andb x y : B64)).
 Proof. swallow1_tac. Qed.
 
-Proposition cert_OR : nCert 1 (
+Proposition cert_OR : nCertN 1 (
   swallow [OR];;
   let* x := pop64 in
   let* y := pop64 in
-  pushZ (Vector.map2 orb x y : B64);;
-  not_terminated).
+  pushZ (Vector.map2 orb x y : B64)).
 Proof. swallow1_tac. Qed.
 
-Proposition cert_NOT : nCert 1 (
+Proposition cert_NOT : nCertN 1 (
   swallow [NOT];;
   let* x := pop64 in
-  pushZ (Vector.map negb x : B64);;
-  not_terminated).
+  pushZ (Vector.map negb x : B64)).
 Proof. swallow1_tac. Qed.
 
-Proposition cert_XOR : nCert 1 (
+Proposition cert_XOR : nCertN 1 (
   swallow [XOR];;
   let* x := pop64 in
   let* y := pop64 in
-  pushZ (Vector.map2 xorb x y : B64);;
-  not_terminated).
+  pushZ (Vector.map2 xorb x y : B64)).
 Proof. swallow1_tac. Qed.
 
 (******************)
 
-Proposition cert_READ_FRAME : nCert 1 (
+Proposition cert_READ_FRAME : nCertN 1 (
   swallow [READ_FRAME];;
   let* i := pop64 in
   let* pair := readFrame i in
   pushZ (fst pair);;
-  pushZ (snd pair);;
-  not_terminated).
+  pushZ (snd pair)).
 Proof. swallow1_tac. rewrite readFrame_spec. crush. Qed.
 
-Proposition cert_READ_PIXEL : nCert 1 (
+Proposition cert_READ_PIXEL : nCertN 1 (
   swallow [READ_PIXEL];;
   let* y := pop64 in
   let* x := pop64 in
   let* c := readPixel x y in
-  pushZ c;;
-  not_terminated).
+  pushZ c).
 Proof. swallow1_tac. Qed.
 
-Proposition cert_NEW_FRAME : nCert 1 (
+Proposition cert_NEW_FRAME : nCertN 1 (
   swallow [NEW_FRAME];;
   let* r := pop64 in
   let* h := pop64 in
   let* w := pop64 in
-  newFrame w h r;;
-  not_terminated).
+  newFrame w h r).
 Proof. swallow1_tac. Qed.
 
-Proposition cert_SET_PIXEL : nCert 1 (
+Proposition cert_SET_PIXEL : nCertN 1 (
   swallow [SET_PIXEL];;
   let* b := pop64 in
   let* g := pop64 in
   let* r := pop64 in
   let* y := pop64 in
   let* x := pop64 in
-  setPixel x y (r, g, b);;
-  not_terminated).
+  setPixel x y (r, g, b)).
 Proof. swallow1_tac. Qed.
 
-Proposition cert_ADD_SAMPLE : nCert 1 (
+Proposition cert_ADD_SAMPLE : nCertN 1 (
   swallow [ADD_SAMPLE];;
   let* r := pop64 in
   let* l := pop64 in
-  addSample (toB16 l) (toB16 r);;
-  not_terminated).
+  addSample (toB16 l) (toB16 r)).
 Proof. swallow1_tac. rewrite addSample_spec. crush. Qed.
 
-Proposition cert_PUT_CHAR : nCert 1 (
+Proposition cert_PUT_CHAR : nCertN 1 (
   swallow [PUT_CHAR];;
   let* c := pop64 in
-  putChar (toB32 c);;
-  not_terminated).
+  putChar (toB32 c)).
 Proof. swallow1_tac. rewrite putChar_spec. crush. Qed.
 
-Proposition cert_PUT_BYTE : nCert 1 (
+Proposition cert_PUT_BYTE : nCertN 1 (
   swallow [PUT_BYTE];;
   let* b := pop64 in
-  putByte (toB8 b);;
-  not_terminated).
+  putByte (toB8 b)).
 Proof. swallow1_tac. rewrite putByte_spec. crush. Qed.
 
 (********************)
 
-Ltac binary_simpl_tac2 :=
-  try simp map;
-  binary_simpl_tac.
-
 Ltac cert_operand_tac :=
-  apply swallow_step_lemma; [ exact I | ];
+  apply swallow_step_lemma_N; [ exact I | ];
   simp nSteps;
-  repeat setoid_rewrite not_terminated_helper;
   apply (bind_propr _ _ _); [ | crush ];
   apply swallow_lemma;
-  binary_simpl_tac2.
+  binary_simpl_tac.
 
-  Proposition cert_JZ_FWD o : nCert 1 (
+  Proposition cert_JZ_FWD o : nCertN 1 (
     swallow [JZ_FWD; o];;
     let* x := pop64 in
     (if (decide (x = 0 :> Z))
@@ -1109,12 +1097,10 @@ Ltac cert_operand_tac :=
        let* pc := get' PC in
        put' PC (offset (toB8 o) pc)
      else
-       ret tt);;
-    not_terminated
-  ).
+       ret tt)).
   Proof. cert_operand_tac. crush. Qed.
 
-  Proposition cert_JZ_BACK o : nCert 1 (
+  Proposition cert_JZ_BACK o : nCertN 1 (
     swallow [JZ_BACK; o];;
     let* x := pop64 in
     (if (decide (x = 0 :> Z))
@@ -1122,9 +1108,7 @@ Ltac cert_operand_tac :=
        let* pc := get' PC in
        put' PC (offset (-(1 + toB8 o)) pc)
        else
-       ret tt);;
-    not_terminated
-  ).
+       ret tt)).
   Proof. cert_operand_tac. crush. Qed.
 
 (*************************)
@@ -1136,37 +1120,32 @@ Ltac cert_push_tac :=
 Definition zVecToZ {n} (u : vector Z n) : Z :=
   Vector.map toB8 u : Bytes n.
 
-Proposition cert_PUSH1 (u: vector Z 1) : nCert 1 (
+Proposition cert_PUSH1 (u: vector Z 1) : nCertN 1 (
   swallow (PUSH1 :: u);;
-  pushZ (zVecToZ u);;
-  not_terminated
+  pushZ (zVecToZ u)
 ).
 Proof. cert_push_tac. Qed.
 
-Corollary cert_PUSH1' x : nCert 1 (
+Corollary cert_PUSH1' x : nCertN 1 (
   swallow [PUSH1; x];;
-  pushZ (toB8 x);;
-  not_terminated
+  pushZ (toB8 x)
 ).
 Proof. apply (cert_PUSH1 [x]). Qed.
 
-Proposition cert_PUSH2 (u: vector Z 2) : nCert 1 (
+Proposition cert_PUSH2 (u: vector Z 2) : nCertN 1 (
   swallow (PUSH2 :: u);;
-  pushZ (zVecToZ u);;
-  not_terminated
+  pushZ (zVecToZ u)
 ).
 Proof. cert_push_tac. Qed.
 
-Proposition cert_PUSH4 (u: vector Z 4) : nCert 1 (
+Proposition cert_PUSH4 (u: vector Z 4) : nCertN 1 (
   swallow (PUSH4 :: u);;
-  pushZ (zVecToZ u);;
-  not_terminated
+  pushZ (zVecToZ u)
 ).
 Proof. cert_push_tac. Qed.
 
-Proposition cert_PUSH8 (u: vector Z 8) : nCert 1 (
+Proposition cert_PUSH8 (u: vector Z 8) : nCertN 1 (
   swallow (PUSH8 :: u);;
-  pushZ (zVecToZ u);;
-  not_terminated
+  pushZ (zVecToZ u)
 ).
 Proof. cert_push_tac. Qed.
