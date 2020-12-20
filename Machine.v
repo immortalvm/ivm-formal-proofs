@@ -91,7 +91,7 @@ Section machine_section.
 
     oneStep' JUMP :=
       let* a := pop64 in
-      put' PC (toB64 a);
+      put' PC a;
 
     oneStep' JZ_FWD :=
         let* o := next 1 in
