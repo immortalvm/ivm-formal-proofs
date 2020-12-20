@@ -764,21 +764,12 @@ Proof.
   rewrite Is_true_spec, Z.ltb_lt. tauto.
 Qed.
 
-Definition isStdOp (op: Z) : bool := (0 <? op) && (op <? 256).
-
-Proposition isStdOp_spec op : isStdOp op <-> 0 < op < 256.
-Proof.
-  unfold isStdOp.
-  setoid_rewrite andb_spec.
-  setoid_rewrite ltb_spec.
-  tauto.
-Qed.
+Notation isStdOp op := (0 < op < 256).
 
 Proposition isStdOp_toB8 {op} (Hop: isStdOp op) : toB8 op = op :> Z.
 Proof.
   rewrite ofN_bitsToN.
   apply fromBits_toBits.
-  apply isStdOp_spec in Hop.
   lia.
 Qed.
 
@@ -875,7 +866,7 @@ Qed.
 Ltac swallow1_tac :=
   unfold nCertN;
   apply swallow_step_lemma_N';
-  [ exact I | ];
+  [ lia | ];
   simp nSteps;
   apply (bind_propr _ _ _);
   [ simp oneStep' |  ];
@@ -1083,7 +1074,7 @@ Proof. swallow1_tac. rewrite putByte_spec. crush. Qed.
 (********************)
 
 Ltac cert_operand_tac :=
-  apply swallow_step_lemma_N; [ exact I | ];
+  apply swallow_step_lemma_N; [ lia | ];
   simp nSteps;
   apply (bind_propr _ _ _); [ | crush ];
   apply swallow_lemma;
