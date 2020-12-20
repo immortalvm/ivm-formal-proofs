@@ -835,11 +835,11 @@ Qed.
 
 Corollary swallow_step_lemma_N n op n' (ops: vector Z n') X (mx: M X)
   (Hop: isStdOp op)
-  (H: swallow ops;; mx;; not_terminated ⊑ oneStep' op;; nSteps n) :
+  (H: (swallow ops;; mx);; not_terminated ⊑ oneStep' op;; nSteps n) :
   nCertN (S n) (swallow (op :: ops);; mx).
 Proof.
-  unfold nCertN.
-  smon_rewrite.
+  unfold nCertN. revert H.
+  smon_rewrite. intros H.
   apply swallow_step_lemma; assumption.
 Qed.
 
