@@ -1016,6 +1016,12 @@ Proposition cert_XOR : nCertN 1 (
   pushZ (Vector.map2 xorb x y : B64)).
 Proof. swallow1_tac. Qed.
 
+Proposition cert_POW2 : nCertN 1 (
+  swallow [POW2];;
+  let* x := pop64 in
+  pushZ (2 ^ x)).
+Proof. swallow1_tac. Qed.
+
 (******************)
 
 Proposition cert_READ_FRAME : nCertN 1 (

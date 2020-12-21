@@ -228,6 +228,10 @@ Section machine_section.
         let* y := pop64 in
         pushZ (Vector.map2 xorb x y : B64);
 
+    oneStep' POW2 :=
+        let* x := pop64 in
+        pushZ (2 ^ x);
+
     oneStep' READ_FRAME :=
         let* i := pop64 in
         let* pair := readFrame i in
