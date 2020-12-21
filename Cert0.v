@@ -898,6 +898,12 @@ Proposition cert_GET_SP : nCertN 1 (
   pushZ a).
 Proof. swallow1_tac. Qed.
 
+(* For the other push instructions, see below. *)
+Proposition cert_PUSH0 : nCertN 1 (
+  swallow [PUSH0];;
+  pushZ 0).
+Proof. swallow1_tac. Qed.
+
 Proposition cert_LOAD1 : nCertN 1 (
   swallow [LOAD1];;
   let* a := pop64 in
