@@ -28,7 +28,7 @@ Section DSet_section.
   Global Instance member_decidable x u : Decidable (member x u).
   Proof.
     typeclasses eauto.
-  Qed.
+  Defined.
 
   Proposition extensionality u v (H: forall x, x ∈ u <-> x ∈ v) : u = v.
   Proof.

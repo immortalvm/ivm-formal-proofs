@@ -228,7 +228,7 @@ Qed.
 Proposition decidable_proper {P} {D: Decidable P} {Q} (H: Q <-> P) : Decidable Q.
 Proof.
   destruct D; [left|right]; tauto.
-Qed.
+Defined.
 
 (* TODO: Move *)
 Lemma bounded_all_neg P {DP: forall (x:nat), Decidable (P x)} n :
@@ -297,7 +297,7 @@ Qed.
 Instance nAfter_disjoint_decidable u n a : Decidable (u # nAfter n a).
 Proof.
   refine (decidable_proper (nAfter_disjoint_spec _ _ _)).
-Qed.
+Defined.
 
 Proposition not_nAfter_disjoint_spec u n a :
   not (u # nAfter n a) -> exists i, (i<n)%nat /\ offset i a ∈ u.
@@ -420,7 +420,7 @@ Ltac simp_assume := setoid_rewrite simp_assume.
 Instance decidable_iff {P Q} (H: P <-> Q) {DP: Decidable P} : Decidable Q.
 Proof.
   destruct DP; [left|right]; tauto.
-Qed.
+Defined.
 
 (* Presumably in coq-hott this could be an actual instance of Proper. *)
 Proposition decide_proper
