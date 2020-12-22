@@ -1152,3 +1152,159 @@ Proposition cert_PUSH8 (u: vector Z 8) : nCertN 1 (
   pushZ (zVecToZ u)
 ).
 Proof. cert_push_tac. Qed.
+
+(******************************************)
+
+Proposition Nat2N_inj_pow (m n : nat) : (m ^ n)%nat = (m ^ n)%N :> N.
+Proof.
+  induction n; [ reflexivity | ].
+  rewrite
+    Nnat.Nat2N.inj_succ,
+    N.pow_succ_r',
+    Nat.pow_succ_r',
+    Nnat.Nat2N.inj_mul,
+    IHn.
+  reflexivity.
+Qed.
+
+Proposition inj_succ (n: nat) : S n = Z.succ n :> Z.
+Proof.
+  now rewrite Nnat.Nat2N.inj_succ, N2Z.inj_succ.
+Qed.
+
+Proposition Nat2N_inj_lt (m n: nat): (m < n)%N <-> (m < n)%nat.
+Proof.
+  setoid_rewrite N2Z.inj_lt.
+  setoid_rewrite nat_N_Z.
+  symmetry.
+  apply Nat2Z.inj_lt.
+Qed.
+
+Definition isPow2 (z:Z) : Prop := exists (n: nat), z = 2 ^ n.
+
+Proposition isPow2_spec z : isPow2 z <-> exists (n: nat), z = (2 ^ n)%nat.
+Proof.
+  unfold isPow2.
+  change 2 with (Z.of_N (N.of_nat 2)).
+  setoid_rewrite <- N2Z.inj_pow.
+  setoid_rewrite Nat2N_inj_pow.
+  reflexivity.
+Qed.
+
+Proposition isPow2_spec' z :
+  isPow2 z <-> 0 < z /\ exists (y: nat), (y < Z.to_nat z)%nat /\ z = 2 ^ y.
+Proof.
+  split.
+  - intros [n H].
+    subst z.
+    split; [ apply pow2_pos | ].
+    exists n.
+    split; [ | reflexivity ].
+    rewrite <- Z_N_nat.
+    change 2 with (Z.of_N (N.of_nat 2)).
+    rewrite <- N2Z.inj_pow.
+    rewrite <- Nat2N_inj_pow.
+    rewrite N2Z.id.
+    rewrite Nnat.Nat2N.id.
+    apply Nat.pow_gt_lin_r.
+    lia.
+
+  - intros [H0 [n [Hn Hz]]].
+    exists n.
+    exact Hz.
+Qed.
+
+Instance isPow2_decidable z : Decidable (isPow2 z).
+Proof.
+  exact (decidable_proper (isPow2_spec' z)).
+Defined.
+
+Definition toBytes' n z : vector Z n :=
+  Vector.map Z.of_N (Vector.map bitsToN (toBytes n z)).
+
+Proposition toBytes'_spec n z i : Vector.nth (toBytes' n z) i = Vector.nth (toBytes n z) i.
+Proof.
+  unfold toBytes'.
+  now do 2 rewrite (nth_map _ _ i i eq_refl).
+Qed.
+
+(* TODO: Move to Binary.v *)
+Corollary bytesToBits_injective {n} {u v: Bytes n} (H: bytesToBits u = bytesToBits v) : u = v.
+Proof.
+  apply (f_equal bitsToBytes) in H.
+  setoid_rewrite bitsToBytes_bytesToBits in H.
+  exact H.
+Qed.
+
+(* TODO: Move to Binary.v *)
+Corollary bitsToN_injective {n} {u v: Bits n} (H: bitsToN u = bitsToN v) : u = v.
+Proof.
+  Set Printing Coercions.
+  apply (f_equal Z.of_N) in H.
+  apply (f_equal (toBits n)) in H.
+  setoid_rewrite toBits_ofN_bitsToN in H.
+  exact H.
+Qed.
+
+(* See also N2Z.inj *)
+
+Proposition toBytes_eq {n x y} (H: cong (n * 8) x y) : toBytes n x = toBytes n y.
+Proof.
+  apply bytesToBits_injective.
+  setoid_rewrite bytesToBits_bitsToBytes.
+  apply toBits_cong.
+  exact H.
+Qed.
+
+
+(**********************)
+
+Open Scope DSet.
+
+(* TODO *)
+Proposition nAfter_nonempty n a :
+  nAfter (S n) a = (nAfter n a) ∪ !{ offset n a }.
+Proof.
+  apply extensionality. intros x.
+  unfold nAfter, singleton, union.
+  repeat setoid_rewrite def_spec.
+  split.
+  - intros [i [Hi Hx]].
+    by_lia (i < n \/ i = n) as Hor.
+    destruct Hor as [Hor|Hor].
+    + left. exists i. intuition.
+    + right. subst i. exact Hx.
+  - intros [[i [Hi Hx]] | Hor].
+    + exists i. split; [lia | exact Hx].
+    + exists n. split; [lia | exact Hor].
+Qed.
+
+Proposition disjoint_union_spec X (u v w: DSet X) :
+  u # v ∪ w <-> u # v /\ u # w.
+Proof.
+  unfold disjoint.
+  setoid_rewrite union_spec.
+  intuition.
+  apply (H0 x). (* TODO *)
+  intuition.
+Qed.
+
+Proposition disjoint_not_member' u x : u # !{x} <-> ~ x ∈ u.
+Proof.
+  split; intros H.
+  - apply disjoint_not_member.
+    apply disjoint_symmetric.
+    exact H.
+  - apply disjoint_symmetric.
+    apply disjoint_not_member.
+    exact H.
+Qed.
+
+Corollary disjoint_nAfter_nonempty u n a :
+  u # nAfter (S n) a <-> u # nAfter n a /\ ~ offset n a ∈ u.
+Proof.
+  rewrite nAfter_nonempty.
+  rewrite disjoint_union_spec.
+  setoid_rewrite disjoint_not_member'.
+  tauto.
+Qed.
