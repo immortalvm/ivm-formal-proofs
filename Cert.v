@@ -17,47 +17,6 @@ Local Notation not_terminated := (ret true) (only parsing).
 Local Notation terminated := (ret false) (only parsing).
 
 
-(********************)
-
-(** The following holds in the initial smonad, see MonoExtras.v. *)
-
-Parameter err_less_eq :
-  forall {X} {RX: Rel X} (mx: M X) (Hmx: mx ⊑ err), mx = err.
-
-Parameter RM_transitive :
-  forall X (RX: Rel X) (RXT: Transitive RX),
-    Transitive (RM X RX).
-
-Parameter RM_antisymmetric :
-  forall X (RX: Rel X) (RXT: Antisymmetric X eq RX),
-    Antisymmetric (M X) eq (RM X RX).
-
-
-(** ** Mark memory as undefined *)
-
-Definition wipe (u: DSet Addr) : M unit :=
-  put' (MEM' u) (fun _ _ _ => None).
-
-Goal forall u, Confined (MEM' u) (wipe u).
-  typeclasses eauto.
-Qed.
-
-Lemma wipe_less u : wipe u ⊑ ret tt.
-Proof.
-  unfold wipe.
-  unfold MEM'.
-  rewrite sub_put_spec.
-  assert (ret tt = get' MEM >>= put' MEM) as Hret;
-    [ smon_rewrite
-    | rewrite Hret; clear Hret ].
-  crush.
-  - apply getMem_propr.
-  - cbn.
-    destruct (decide (a ∈ u)).
-    + exact I.
-    + apply Hfg.
-Qed.
-
 Definition wipeStack n :=
   let* a := get' SP in
   wipe (nBefore (n * 8) a).

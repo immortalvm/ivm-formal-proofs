@@ -188,7 +188,7 @@ Proof. intros z z' Hz. apply toBits_cong. exact Hz. Qed.
 Corollary fromBits_toBits' n (u: Bits n) : toBits n u = u.
 Proof. rewrite ofN_bitsToN. apply toBits_fromBits. Qed.
 
-(* TODO: Move and improve name *)
+(* TODO: Useful? *)
 Proposition generalizer
       {MP1 : MachineParams1}
       {MP2 : MachineParams2}
@@ -1307,4 +1307,592 @@ Proof.
   rewrite disjoint_union_spec.
   setoid_rewrite disjoint_not_member'.
   tauto.
+Qed.
+
+(********************************)
+(** The following holds in the initial smonad, see MonoExtras.v. *)
+
+Parameter err_less_eq :
+  forall {X} {RX: Rel X} (mx: M X) (Hmx: mx ⊑ err), mx = err.
+
+Parameter RM_transitive :
+  forall X (RX: Rel X) (RXT: Transitive RX),
+    Transitive (RM X RX).
+
+Parameter RM_antisymmetric :
+  forall X (RX: Rel X) (RXT: Antisymmetric X eq RX),
+    Antisymmetric (M X) eq (RM X RX).
+
+Existing Instance RM_transitive.
+Existing Instance RM_antisymmetric.
+
+(**************************)
+
+Section restriction_section.
+
+  Context {A : Type} {F : A -> Type}.
+
+  Proposition fullLens_is_all : @fullLens A F ≃ sndMixer.
+  Proof. easy. Qed.
+
+  Proposition emptyLens_is_void : @restrLens A F ∅ ≃ fstMixer.
+  Proof. intros f g. now extensionality a. Qed.
+
+End restriction_section.
+
+Proposition fstMixer_composite {S A} (LA: Lens S A) : compositeMixer fstMixer LA ≃ fstMixer.
+Proof.
+  intros x y. cbn. apply update_proj.
+Qed.
+
+Proposition sndMixer_composite {S A} (LA: Lens S A) : compositeMixer sndMixer LA ≃ LA.
+Proof.
+  intros x y. reflexivity.
+Qed.
+
+(************************)
+
+Proposition emptyMem_is_void : MEM' ∅ ≃ fstMixer.
+Proof.
+  unfold MEM'.
+  rewrite composite_compositeMixer, emptyLens_is_void.
+  apply fstMixer_composite.
+Qed.
+
+Proposition put_void {A} (LA: Lens State A) (H: (LA|fstMixer)) a : put' LA a = ret tt.
+Proof.
+  unfold Submixer in H. cbn in H.
+  rewrite put_spec. cbn.
+  enough (forall s, update s a = s) as Hu.
+  - setoid_rewrite Hu. smon_rewrite.
+  - intros s. specialize (H s s (update s a)).
+    revert H. lens_rewrite. tauto.
+Qed.
+
+Corollary put_empty f : put' (MEM' ∅) f = ret tt.
+Proof.
+  apply put_void.
+  clear f.
+  rewrite emptyMem_is_void.
+  reflexivity.
+Qed.
+
+(* TODO: Move to StateRel.v ? *)
+Instance update_MEM_propR : PropR (@update _ _ MEM).
+Proof.
+  crush.
+  srel_destruct Hst.
+  unfold rel, state_relation, lens_relation, and_relation.
+  lens_rewrite.
+  repeat split; assumption.
+Qed.
+
+(******)
+
+(* TODO: Useful? *)
+Notation assume' P := (if decide P then ret tt else err).
+
+(* TODO: Move *)
+Proposition simplify_assume P {DP: Decidable P} {X} (mx: M X) :
+  assume P;; mx = assume' P;; mx.
+Proof.
+  destruct (decide P); smon_rewrite.
+Qed.
+
+Proposition assume_bind P {DP: Decidable P} {X} (f: P -> M X) :
+  let* H := assume P
+  in f H =
+    match decide P with
+    | left H => f H
+    | right _ => err
+    end.
+Proof.
+  destruct (decide P) as [H|H]; smon_rewrite.
+Qed.
+
+Corollary assume_bind' P {DP: Decidable P} {X} (mx: M X) :
+  assume P;; mx = if decide P then mx else err.
+Proof.
+  apply assume_bind.
+Qed.
+
+(******)
+
+Section assume_rel_section.
+
+  Proposition assume_eq
+    P {DP: Decidable P} {X} (f g: P -> M X)
+    (H : forall (p:P), f p = g p) :
+      let* p := assume P in f p =
+      let* p := assume P in g p.
+  Proof.
+    destruct (decide P) as [p|_]; smon_rewrite.
+    apply H.
+  Qed.
+
+  Ltac assume_rel_tac P H :=
+    destruct (decide P) as [p|_];
+    smon_rewrite;
+    [ apply H
+    | crush ].
+
+  Proposition assume_rel
+    P {DP: Decidable P} {X} (f g: P -> M X)
+    (H : forall (p:P), f p ⊑ g p) :
+      let* p := assume P in f p ⊑
+      let* p := assume P in g p.
+  Proof. assume_rel_tac P H. Qed.
+
+  Proposition assume_rel'
+    P {DP: Decidable P} {X} (f: P -> M X) (mx: M X)
+    (H : forall (p:P), f p ⊑ mx) :
+      let* p := assume P in f p ⊑ mx.
+  Proof. assume_rel_tac P H. Qed.
+
+End assume_rel_section.
+
+Proposition confined'
+  {mix: Mixer State} {mx: M unit} (Cmx: Confined mix mx)
+  (my: M unit) {Hmy: Neutral mix my} :
+my;; mx = mx;; my.
+Proof.
+enough (my;; mx;; ret tt = mx;; my;; ret tt) as HH.
+- revert HH. smon_rewrite. tauto.
+- rewrite Cmx.
+  + reflexivity.
+  + typeclasses eauto.
+Qed.
+
+Instance confined_swallow' pc {n} (ops: vector Z n) :
+  Confined (MEM' (nAfter n pc) * PC) (
+    put' PC pc;;
+    swallow ops
+  ).
+Proof.
+  rewrite swallow_spec, lens_put_get.
+  typeclasses eauto.
+Qed.
+
+(************************)
+
+(** ** Mark memory as undefined *)
+Definition wipe (u: DSet Addr) : M unit :=
+  put' (MEM' u) (fun _ _ _ => None).
+
+Goal forall u, Confined (MEM' u) (wipe u).
+  typeclasses eauto.
+Qed.
+
+Proposition wipe_empty : wipe ∅ = ret tt.
+Proof. apply put_empty. Qed.
+
+Proposition wipe_mono u v (H: u ⊆ v) : wipe v ⊑ wipe u.
+Proof.
+  unfold wipe. do 2 rewrite put_spec. cbn.
+  unfold restr. crush.
+  apply update_MEM_propR; [ exact Hst | ]. crush.
+  specialize (H a). cbv. cbv in H.
+  destruct (v a) eqn:Hva; [ exact I | ].
+  destruct (u a) eqn:Hua.
+  - exfalso. exact (H I).
+  - srel_destruct Hst.
+    apply Hst_mem.
+Qed.
+
+Corollary wipe_less u : wipe u ⊑ ret tt.
+Proof.
+  (* This is also provable without assuming RM_transitive. *)
+  transitivity (wipe ∅).
+  - apply wipe_mono. apply empty_initial.
+  - rewrite wipe_empty. crush.
+Qed.
+
+Instance confined_wipe u : Confined (MEM' u) (wipe u).
+Proof.
+  typeclasses eauto.
+Qed.
+
+(* TODO: Probably not safe to define as an instance. *)
+Lemma disjoint_independent' u v (H: u # v) : Independent (MEM' u) (MEM' v).
+Proof.
+  unfold MEM'.
+  apply
+    composite_independent_r,
+    separate_independent. (* TODO: Rename and move. *)
+  exact H.
+Qed.
+
+(***********)
+
+Lemma wipe_swallow_reordering'
+    u {n} (ops: vector Z n) pc (Hdis: u # nAfter n pc) :
+  put' PC pc;;
+  wipe u;;
+  swallow ops =
+    put' PC pc;;
+    swallow ops;;
+    wipe u.
+Proof.
+  setoid_rewrite confined_wipe; [ | typeclasses eauto .. ].
+  setoid_rewrite <- bind_assoc at 2.
+
+  setoid_rewrite (confined' (confined_wipe u)); [ reflexivity | ].
+  unshelve eapply (confined_neutral (m:= MEM' (nAfter n pc) * PC ));
+    try typeclasses eauto.
+
+  apply independent_forward.
+  setoid_rewrite prodLens_prodMixer.
+  apply independent_prod.
+  - apply disjoint_independent'.
+    apply disjoint_symmetric. (* TODO: make global? *)
+    exact Hdis.
+  - apply independent_symmetric.
+    typeclasses eauto.
+Qed.
+
+Corollary wipe_swallow_reordering u {n} (ops: vector Z n) :
+  let* pc := get' PC in
+  assume (u # nAfter n pc);;
+  wipe u;;
+  swallow ops =
+    let* pc := get' PC in
+    assume (u # nAfter n pc);;
+    swallow ops;;
+    wipe u.
+Proof.
+  smon_ext' PC pc.
+  setoid_rewrite lens_put_get.
+  setoid_rewrite <- confined_put; [ | typeclasses eauto .. ].
+  apply assume_eq, wipe_swallow_reordering'.
+Qed.
+
+Arguments proj {_ _} _ _.
+Arguments update {_ _} _ _ _.
+
+(* TODO: Don't we have this already? Safe as global? *)
+#[refine]
+Instance sublensFactor
+  {A X Y} {LX: Lens A X} {LY: Lens A Y}
+  (HS: (LX|LY)) (a:A) : Lens Y X :=
+{
+  proj y := proj LX (update LY a y);
+  update y x := proj LY (update LX (update LY a y) x);
+}.
+Proof.
+  - intros y x. lens_rewrite.
+    specialize (HS a (update LY a y) (update LX a x)).
+    revert HS. cbn. lens_rewrite.
+    intros HS. rewrite <- HS. lens_rewrite.
+  - intros y.
+    specialize (HS a (update LY a y) (update LY a y)).
+    revert HS. cbn. lens_rewrite.
+  - intros y x x'.
+    specialize (HS
+      (update LY a y)
+      (update LX (update LY a y) x)
+      (update LX a x')).
+    cbn in HS. revert HS. lens_rewrite.
+    intros HS. rewrite HS. lens_rewrite.
+Defined.
+
+Lemma sublensFactor_spec
+  {A X Y} {LX: Lens A X} {LY: Lens A Y}
+  (HS: (LX|LY)) (a:A) : sublensFactor HS a ∘ LY ≅ LX.
+Proof.
+  intros b x. cbn. unfold compose.
+  remember (HS a b (update LX a x)) as HH eqn:HHe; clear HHe.
+  revert HH. cbn. lens_rewrite. intros HH.
+  rewrite HH. clear HH. lens_rewrite.
+  specialize (HS b b (update LX b x)).
+  revert HS. cbn. lens_rewrite. congruence.
+Qed.
+
+Arguments proj {_ _ _} _.
+Arguments update {_ _ _} _ _.
+
+(****)
+
+Proposition sub_put_get {A B} (LA: Lens State A) (LB: Lens A B) a :
+  put' LA a;;
+  get' (LB ∘ LA) =
+    put' LA a;;
+    ret (proj a).
+Proof.
+  rewrite put_spec, get_spec.
+  cbn. smon_rewrite'.
+Qed.
+
+Proposition mem_point_sub {a u} (Ha: a ∈ u) :
+  (MEM'' a | MEM' u).
+Proof.
+  unfold MEM', MEM''.
+  apply sublens_comp, pointLens_sublens.
+  exact Ha.
+Qed.
+
+(* TODO*)
+Existing Instance compositeLens_proper.
+
+Lemma mem_put_get'' {a u} (Ha: a ∈ u) f :
+  put' (MEM' u) f;;
+  get' (MEM'' a) =
+    put' (MEM' u) f;;
+    ret (f a Ha).
+Proof.
+  unfold MEM', MEM''.
+  set (PL := pointLens _).
+  set (RL := restrLens _).
+  assert (PL|RL) as H;
+  [ apply pointLens_sublens; exact Ha | ].
+  setoid_rewrite <- (sublensFactor_spec H (fun _ _ => None)).
+  setoid_rewrite <- compositeLens_associative.
+  setoid_rewrite sub_put_get. f_equal.
+  extensionality x. destruct x. f_equal.
+  cbn. decided Ha. reflexivity.
+Qed.
+
+Proposition rel_extensional'
+  {A} (LA: Lens State A)
+  {RA: Rel A} {Hg: @PropR _ (RM A RA) (get' LA)}
+  {X} {RX: Rel X}
+  (mx mx': M X)
+  (H: forall a a', a ⊑ a' -> put' LA a;; mx ⊑ put' LA a';; mx') :
+  mx ⊑ mx'.
+Proof.
+  enough (
+    let* a := get' LA in put' LA a;; ret tt;; mx ⊑
+    let* a' := get' LA in put' LA a';; ret tt;; mx') as HHH.
+  - revert HHH. smon_rewrite. tauto.
+  - setoid_rewrite ret_tt_bind.
+    apply (
+      bind_propr State M _ _ _ _ Hg
+      (fun a => put' LA a;; mx)
+      (fun a' => put' LA a';; mx') H).
+Qed.
+
+(*****)
+
+(* TODO: Move / remove ? *)
+Opaque load.
+
+Proposition wipe_load {u a} (Ha: a ∈ u) : wipe u;; load a = err.
+Proof.
+  unfold wipe.
+  rewrite load_spec''.
+  setoid_rewrite confined_get; [ | typeclasses eauto ].
+  smon_rewrite.
+  rewrite <- bind_assoc.
+  rewrite mem_put_get''.
+  - smon_rewrite.
+  - exact Ha.
+Qed.
+
+Proposition put_to_get
+    {A} (LA: Lens State A)
+    {X} (f g: A -> M X)
+    (H: forall a,
+      put' LA a;; f a =
+      put' LA a;; g a) :
+  let* a := get' LA in f a =
+  let* a := get' LA in g a.
+Proof.
+  smon_ext' LA a.
+  setoid_rewrite lens_put_get.
+  exact (H a).
+Qed.
+
+Proposition put_to_get'
+    {A} (LA: Lens State A)
+    {RA: Rel A} {Hg: @PropR _ (RM A RA) (get' LA)}
+    {X} (f g: A -> M X)
+    (H: forall a a', a ⊑ a' ->
+      put' LA a;; f a ⊑
+      put' LA a';; g a') :
+  let* a := get' LA in f a ⊑
+  let* a' := get' LA in g a'.
+Proof.
+  apply (rel_extensional' LA). intros a a' Ha.
+  setoid_rewrite lens_put_get. apply H. exact Ha.
+Qed.
+
+(****)
+
+Proposition rel_assume
+    {X} (mx: M X) {RX: Rel X} {Hmx: PropR mx}
+    (P: X -> Prop) {HP: forall x, Decidable (P x)}
+    {Y} (f: X -> M Y) {RY: Rel Y} (HRY: Reflexive RY) {Hf: PropR f} :
+  let* x := mx in
+  assume' (P x);;
+  f x ⊑
+    let* x := mx in
+    f x.
+Proof.
+  apply bind_propr'.
+  - exact Hmx.
+  - crush. apply Hf. exact Hxy.
+Qed.
+
+(*************************)
+
+Proposition load_mx a {X} {RX: Rel X} {mx mx': M X} (Hmx: mx ⊑ mx') :
+  load a;; mx ⊑ mx'.
+Proof.
+  rewrite load_spec.
+  destruct (decide _) as [Ha|_]; smon_rewrite; [ | crush ].
+  rewrite extr_spec.
+  apply (rel_extensional' MEM).
+  intros mem mem' Hm.
+  rewrite lens_put_get.
+  destruct (mem a Ha) as [H|]; smon_rewrite; crush.
+  apply Hm.
+  exact Hmx.
+Qed.
+
+Proposition loadMany_mx
+    n a {X} {RX: Rel X} {TX: Transitive RX}
+    (mx: M X) {Hmx: mx ⊑ mx} :
+  loadMany n a;; mx ⊑ mx.
+Proof.
+  revert a.
+  induction n; intros a; simp loadMany; smon_rewrite; crush; [ exact Hmx | ].
+  transitivity (load a;; mx).
+  - apply bind_propr'.
+    + apply load_propr.
+    + crush. apply IHn.
+  - apply load_mx. exact Hmx.
+Qed.
+
+(****)
+
+Proposition swallow_n {n} (ops: vector Z n) :
+  swallow ops ⊑
+    let* pc := get' PC in
+    put' PC (offset n pc).
+Proof.
+  rewrite swallow_spec.
+  apply (@put_to_get' _ _ eq_relation getPc_propr).
+  intros a a' Ha. destruct Ha.
+  apply (rel_extensional' MEM). intros mem mem' Hm.
+
+  setoid_rewrite simplify_assume.
+  setoid_rewrite confined_put.
+  2,3:
+    apply (confined_neutral (m:=MEM)); (* TODO *)
+    typeclasses eauto.
+
+  transitivity (
+    put' PC a;;
+    put' MEM mem;;
+    let* u := loadMany n a in
+    put' PC (offset n a)).
+
+  - apply bind_propr'.
+    + apply putPc_propr. reflexivity.
+    + crush.
+
+  - apply bind_propr'.
+    + apply putPc_propr. reflexivity.
+    + crush.
+      * apply Hm.
+      * apply loadMany_mx.
+        -- typeclasses eauto.
+        -- apply putPc_propr. reflexivity.
+Qed.
+
+(***********)
+
+Proposition wipe_swallow_precondition u {n} (ops: vector Z n) :
+  wipe u;;
+  swallow ops = let* pc := get' PC in
+                assume (u # nAfter n pc);;
+                wipe u;;
+                swallow ops.
+Proof.
+  induction ops using vec_rev_ind.
+  {
+    simp_assume.
+    smon_ext s.
+    unfold Addr.
+    rewrite get_spec.
+    smon_rewrite.
+    apply bind_extensional. intros [].
+    rewrite decide_true.
+    - reflexivity.
+    - now rewrite nAfter_empty.
+  }
+  simp swallow.
+  rewrite <- bind_assoc.
+  rewrite IHops at 1. clear IHops.
+  rewrite bind_assoc.
+  smon_ext' PC pc.
+  repeat rewrite lens_put_get.
+
+  destruct (decide (u # nAfter (S n) pc)) as [Hd'|Hd'].
+  {
+    setoid_rewrite ret_bind.
+    repeat setoid_rewrite bind_assoc.
+    rewrite nAfter_nonempty in Hd'.
+    apply disjoint_union_spec in Hd'.
+    destruct Hd' as [Hd0 Hd1].
+
+    destruct (decide (u # nAfter n pc)) as [He0|He1];
+    [ | contradict He1; exact Hd0 ].
+    rewrite ret_bind.
+    reflexivity.
+  }
+
+  destruct (decide (u # nAfter n pc)) as [Hd''|Hd''].
+  {
+    smon_rewrite.
+    setoid_rewrite disjoint_nAfter_nonempty in Hd'.
+    assert (offset n pc ∈ u) as Hn; [ apply decidable_raa; intuition idtac | ].
+
+    setoid_rewrite <- bind_assoc at 2.
+    setoid_rewrite <- bind_assoc at 1.
+    rewrite wipe_swallow_reordering'; [ | exact Hd'' ].
+    setoid_rewrite -> bind_assoc at 1.
+    setoid_rewrite -> bind_assoc at 1.
+
+    apply err_less_eq.
+    setoid_rewrite simplify_assume.
+    transitivity (
+      put' PC pc;;
+      (let* pc := get' PC in
+      put' PC (offset n pc));;
+      wipe u;;
+      let* x3 := get' PC in
+      let* x4 := load x3 in
+      assume' (x4 = toB8 x);;
+      put' PC (offset 1 x3)
+    ).
+    - apply bind_propr'; [ apply putPc_propr; reflexivity | ].
+      intros [] [] _. apply bind_propr'; [ apply swallow_n | ].
+      intros [] [] _. crush. unfold wipe.
+
+      rewrite (put_spec (MEM' u)).
+      cbn.
+      unfold compose.
+      crush.
+      unfold rel, state_relation, and_relation, lens_relation.
+      lens_rewrite.
+      srel_destruct Hst.
+      repeat split; try assumption.
+      setoid_rewrite proj_update.
+      crush.
+      destruct (decide (a ∈ u)); [ crush | ].
+      apply Hst_mem.
+
+    - setoid_rewrite bind_assoc.
+      rewrite lens_put_get.
+      rewrite lens_put_put.
+      setoid_rewrite confined_get.
+      rewrite lens_put_get.
+      setoid_rewrite <- bind_assoc at 2.
+      assert (wipe u;; load (offset n pc) = err) as H.
+      + apply wipe_load. exact Hn.
+      + setoid_rewrite H.
+        smon_rewrite. crush.
+      + apply (confined_neutral _ (m:=MEM)).
+  }
+  smon_rewrite.
 Qed.

@@ -317,6 +317,7 @@ Section lensmonad_section.
   Corollary smonad_ext' {X} (mx mx': M X)
         (H: forall a, put' a;; mx = put' a;; mx') : mx = mx'.
   Proof.
+    (* TODO: Rewrite avoid bind_extensional by forward reasoning. *)
     setoid_rewrite <- lens_get_ret.
     setoid_rewrite <- (lens_get_put (fun _ _ => _)).
     apply bind_extensional.
