@@ -11,7 +11,7 @@ Open Scope vector.
 Import OpCodes.
 
 (* TODO: Move? *)
-Opaque next.
+Global Opaque next.
 
 Open Scope Z.
 
@@ -35,8 +35,8 @@ Qed.
 Global Ltac simp_loadMany := rewrite_strat (outermost (hints loadMany)).
 
 (* TODO: Move to Operations.v ? *)
-Opaque loadMany.
-Opaque load.
+Global Opaque loadMany.
+Global Opaque load.
 
 Proposition postpone_assume P {DP: Decidable P} {X} (mx: M X) {Y} (f: X -> M Y) :
   assume P;;
@@ -83,7 +83,7 @@ Qed.
 Hint Rewrite @vector_map_equation_1 : map.
 Hint Rewrite @vector_map_equation_2 : map.
 
-Opaque Vector.map.
+Global Opaque Vector.map.
 
 
 Lemma next_1_helper (op: Z) (Hop: 0 <= op < 256) :
@@ -342,7 +342,7 @@ Proposition bytesToLongs_equation_2 {n} b0 b1 b2 b3 b4 b5 b6 b7 (u: Bytes (n * 8
 Proof. reflexivity. Qed.
 
 Hint Rewrite bytesToLongs_equation_1 @bytesToLongs_equation_2 : bytesToLongs.
-Opaque bytesToLongs.
+Global Opaque bytesToLongs.
 
 
 Equations popN (n: nat) : M (vector B64 n) :=
@@ -352,7 +352,7 @@ Equations popN (n: nat) : M (vector B64 n) :=
                 ret (h :: r).
 
 (* TODO: Move *)
-Opaque popMany.
+Global Opaque popMany.
 
 Proposition bytesToBits_equation_2' {n} b (u: Bytes n) :
   @bytesToBits (S n) (b :: u) = b ++ bytesToBits u.
@@ -544,7 +544,7 @@ Qed.
 
 
 (* TODO: Why do we have to repeat this? *)
-Opaque bytesToBits.
+Global Opaque bytesToBits.
 
 Proposition bytesToBits_equation_3 (u: B8) : bytesToBits [u] = u.
 Proof.
@@ -649,7 +649,6 @@ Proof.
 
     apply bind_extensional. intros u.
     simpl Vector.map.
-    Opaque Vector.map.
 
     unfold Cells. (* TODO: How can we avoid having to remember this everywhere? *)
     setoid_rewrite assume_cons.
@@ -1671,9 +1670,6 @@ Proof.
 Qed.
 
 (*****)
-
-(* TODO: Move / remove ? *)
-Opaque load.
 
 Proposition wipe_load {u a} (Ha: a ∈ u) : wipe u;; load a = err.
 Proof.
