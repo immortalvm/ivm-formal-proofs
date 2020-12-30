@@ -14,4 +14,5 @@ coqc -Q . iVM Rel.v
 coqc -Q . iVM StateRel.v
 coqc -Q . iVM Mono.v
 coqc -Q . iVM Cert0.v
+coqc -Q . iVM Cert1.v
 coqc -Q . iVM Cert.v

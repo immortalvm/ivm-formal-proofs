@@ -1,77 +1,161 @@
-From iVM Require Import DSet Mono Cert0.
+From iVM Require Import DSet Mono Cert0 Cert1.
 Import DSetNotations.
 
 Unset Suggest Proof Using.
 
-Open Scope vector.
-
 (* TODO: Place inside section or module. *)
 Import OpCodes.
-
-(* TODO: Move? *)
-Opaque next.
-
-Open Scope Z.
 
 Local Notation not_terminated := (ret true) (only parsing).
 Local Notation terminated := (ret false) (only parsing).
 
+(******************************)
 
-Definition wipeStack n :=
-  let* a := get' SP in
-  wipe (nBefore (n * 8) a).
-
-Corollary wipeStack_less n : wipeStack n ⊑ ret tt.
+Proposition addressable_pred {n} : addressable (S n) -> addressable n.
 Proof.
-  unfold wipeStack.
-  rewrite get_spec.
-  cbn.
-  rewrite bind_assoc.
-  rewrite <- get_ret.
-  crush.
-  rewrite ret_bind.
-  apply wipe_less.
+  intros H. apply (@addressable_le (S n)).
+  - exact H.
+  - lia.
 Qed.
 
-Proposition rel_ret_tt
-            mu Y (my my' : M Y)
-            `(mu ⊑ ret tt)
-            `(my ⊑ my') : mu;; my ⊑ my'.
+(*******************************)
+
+(** Optimized implementation *)
+Definition pushCode (z: Z) : list Z :=
+  let x := z mod 2 ^ 64 in
+  let y := (-1 - z) mod 2 ^ 64 in
+  if decide (x = 0) then [PUSH0]
+  else if decide (y = 0) then [PUSH0; NOT]
+  else if decide (x < 2 ^ 8) then [PUSH1; x]
+  else if decide (y < 2 ^ 8) then [PUSH1; x; NOT]
+  else if decide (x < 2 ^ 16) then [PUSH2] ++ toBytes' 2 x
+  else if decide (isPow2 x) then [PUSH1; Z.log2 x; POW2]
+  else if decide (y < 2 ^ 16) then [PUSH2] ++ toBytes' 2 y ++ [NOT]
+  else if decide (isPow2 y) then [PUSH1; Z.log2 y; POW2; NOT]
+  else if decide (x < 2 ^ 32) then [PUSH4] ++ toBytes' 4 x
+  else if decide (y < 2 ^ 32) then [PUSH4] ++ toBytes' 4 y ++ [NOT]
+  else [PUSH8] ++ toBytes' 8 x.
+
+Definition pushCode_steps (z: Z) : nat :=
+  let x := z mod 2 ^ 64 in
+  let y := (-1 - z) mod 2 ^ 64 in
+  if decide (x = 0) then 1
+  else if decide (y = 0) then 2
+  else if decide (x < 2 ^ 8) then 1
+  else if decide (y < 2 ^ 8) then 2
+  else if decide (x < 2 ^ 16) then 1
+  else if decide (isPow2 x) then 2
+  else if decide (y < 2 ^ 16) then 2
+  else if decide (isPow2 y) then 3
+  else if decide (x < 2 ^ 32) then 1
+  else if decide (y < 2 ^ 32) then 2
+  else 1.
+
+Lemma cert_pushCode z : nCertN (pushCode_steps z) (
+  wipeStack 1;;
+  swallow (of_list (pushCode z));;
+  pushZ z
+).
 Proof.
-  assert (my' = ret tt;; my') as HH.
-  - rewrite ret_bind. reflexivity.
-  - rewrite HH. crush; assumption.
-Qed.
+  unfold pushCode, pushCode_steps.
+  set (x := z mod 2 ^ 64).
+  set (y := (-1 - z) mod 2 ^ 64).
 
-Definition w_pop64 := let* v := pop64 in
-                      wipeStack 1;;
-                      ret v.
+  destruct (decide (x = 0)) as [H0|_].
+  {
+    subst x.
+    assert (pushZ z = pushZ 0) as H.
+    - unfold pushZ. do 2 f_equal. apply toBytes_eq. exact H0.
+    - rewrite H.
+      unshelve eapply (wipeStack_nCertN _ cert_PUSH0 1).
+      crush. apply swallow_propr.
+  }
+  destruct (decide (y = 0)) as [H1|_].
+  {
+    subst y.
+    simpl of_list.
+    unfold nCertN, nCert, wipeStack.
+    repeat rewrite bind_assoc.
+    setoid_rewrite <- bind_assoc at 2.
+    apply (rel_extensional' SP). intros sp sp' Hsp. destruct Hsp.
+    rewrite lens_put_get.
 
-Corollary wiped_pop64 : w_pop64 ⊑ pop64.
-Proof.
-  unfold w_pop64.
-  rewrite <- bind_ret.
-  crush.
-  apply rel_ret_tt.
-  - apply wipeStack_less.
-  - crush.
-Qed.
+    transitivity (
+      put' SP sp;;
+      (
+        let* pc := get' PC in
+        assume' (nBefore 8 sp # nAfter 2 pc);;
+        swallow [8; 42] );;
+      pushZ z;;
+      ret true
+    ).
+    apply bind_propr'.
+    - apply putSp_propr. reflexivity.
+    - intros _ _ _.
+      apply bind_propr'.
+      * apply wipe_swallow_precondition'.
+      * crush.
+    - repeat setoid_rewrite bind_assoc.
+      apply (rel_extensional' PC). intros pc pc' Hpc. destruct Hpc.
+      setoid_rewrite <- confined_put; [ | typeclasses eauto .. ].
+
+      setoid_rewrite lens_put_get.
+      rewrite <- simplify_assume.
+      do 2 setoid_rewrite <- postpone_assume.
+      apply assume_rel'. intros H.
+      rewrite swallow_spec.
+      setoid_rewrite simplify_assume.
+
+      Opaque loadMany. (* TODO *)
+      repeat setoid_rewrite bind_assoc.
+      setoid_rewrite lens_put_get.
+
+      apply (rel_extensional' (MEM' (nAfter 2 pc))).
+      intros f g Hfg.
+
+      setoid_rewrite confined_loadMany.
+      setoid_rewrite confined_loadMany.
+      2,3 : typeclasses eauto.
 
 
-(** ** Standard cert start *)
-
-Definition stdStart m n {o} (ops: vector Z o) : M (vector B64 n) :=
-  let* v := popN n in
-  wipeStack (m + n);;
-  swallow ops;;
-  ret v.
-
-(** By putting [swallow] after [wipeStack] we ensure that [stdStart] fails
-    if the operations overlap with (the relevant parts of) the stack. *)
+      setoid_rewrite confined_loadMany.
 
 
-(************************************)
 
+
+
+
+
+
+    intros y y' Hy.
+
+    idtac.
+
+    setoid_rewrite (wipe_swallow_precondition' (nBefore 8 a)).
+    transitivity
+
+    unfold wipeStack.
+    rewrite bind_assoc.
+    setoid_rewrite <- bind_assoc at 2.
+    setoid_rewrite wipe_swallow_precondition.
+    repeat setoid_rewrite bind_assoc.
+    setoid_rewrite simplify_assume.
+
+    unfold nCertN.
+    rewrite bind_assoc.
+    apply swallow_step_lemma; [ easy | ].
+    simp oneStep'.
+
+  }
+
+
+
+
+
+
+
+
+(*************************************************)
 
 
 
@@ -97,55 +181,6 @@ Definition stdDis m n o :=
 
 (* ----------------------------------- *)
 
-Proposition wipe_swallow_precondition u {n} (ops: vector Z n) :
-  wipe u;;
-  swallow ops = let* pc := get' PC in
-                assume (u # nAfter n pc);;
-                wipe u;;
-                swallow ops.
-Proof.
-  induction ops using vec_rev_ind.
-  - simp_assume.
-    smon_ext s.
-    unfold Addr.
-    rewrite get_spec.
-    smon_rewrite.
-    apply bind_extensional. intros [].
-    rewrite decide_true.
-    + reflexivity.
-    + now rewrite nAfter_empty.
-
-  - simp swallow.
-    rewrite <- bind_assoc.
-    rewrite IHops at 1.
-    rewrite bind_assoc.
-    smon_ext' PC pc.
-    repeat rewrite lens_put_get.
-    destruct (decide (u # nAfter n pc)) as [Hd|Hd].
-    + destruct (decide (u # nAfter (S n) pc)) as [Hd'|Hd'].
-      * smon_rewrite.
-      * smon_rewrite.
-        assert (offset n pc ∈ u) as Hu.
-        -- clear IHops.
-           apply not_nAfter_disjoint_spec in Hd'.
-           destruct Hd' as [i [Hi Hu]].
-           by_lia (i = n \/ i < n) as Hii.
-           destruct Hii as [[]|Hii]; [exact Hu|].
-           contradict Hd.
-           unfold disjoint.
-           intros Hd.
-           apply (Hd (offset i pc)).
-           split.
-           ++ exact Hu.
-           ++ unfold nAfter.
-              rewrite def_spec.
-              exists i.
-              split.
-              ** lia.
-              ** reflexivity.
-        -- rewrite swallow_spec.
-
-(********* Continue from here *********)
 
     setoid_rewrite nAfter_empty.
     unfold nAfter.
