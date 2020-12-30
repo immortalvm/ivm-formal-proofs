@@ -36,6 +36,12 @@ Section DSet_section.
     apply bool_extensionality, H.
   Qed.
 
+  Proposition membership_unique u x (H H': x ∈ u) : H = H'.
+  Proof.
+    unfold member in *.
+    apply is_true_unique.
+  Qed.
+
   Definition subset u v := forall x, x ∈ u -> x ∈ v.
   Infix "⊆" := subset (at level 70) : type_scope.
 
@@ -207,6 +213,27 @@ Section DSet_section.
       reflexivity.
   Qed.
 
+  Proposition disjoint_union_spec u v w :
+    u # v ∪ w <-> u # v /\ u # w.
+  Proof.
+    unfold disjoint.
+    setoid_rewrite union_spec.
+    intuition.
+    apply (H0 x). (* TODO *)
+    intuition.
+  Qed.
+
+  Proposition disjoint_not_member' u x : u # !{x} <-> ~ x ∈ u.
+  Proof.
+    split; intros H.
+    - apply disjoint_not_member.
+      apply disjoint_symmetric.
+      exact H.
+    - apply disjoint_symmetric.
+      apply disjoint_not_member.
+      exact H.
+  Qed.
+
 End DSet_section.
 
 Arguments DSet : clear implicits.
@@ -224,5 +251,7 @@ Module DSetNotations.
   Notation "∅" := empty : DSet_scope.
   Notation "!{  x  }" := (singleton x) (at level 0, x at level 99) : DSet_scope.
   Infix "∪" := union (at level 40, left associativity) : DSet_scope.
+
+  Open Scope DSet.
 
 End DSetNotations.

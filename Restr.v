@@ -28,6 +28,9 @@ Section restriction_section.
     destruct t. reflexivity.
   Defined.
 
+  Proposition fullLens_is_all : fullLens ≃ sndMixer.
+  Proof. easy. Qed.
+
   #[refine] Instance subsetLens {u v} (Huv: u ⊆ v) : Lens (restr v) (restr u) :=
   {
     proj f a Ha := f a (Huv a Ha);
@@ -57,6 +60,9 @@ Section restriction_section.
 
   Instance restrLens u : Lens S (restr u) :=
     subsetLens full_terminal ∘ fullLens.
+
+  Proposition emptyLens_is_void : restrLens ∅ ≃ fstMixer.
+  Proof. intros f g. now extensionality a. Qed.
 
   (** By construction *)
   Instance full_sublens u : (restrLens u | fullLens).

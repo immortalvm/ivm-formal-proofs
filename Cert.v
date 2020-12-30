@@ -11,14 +11,7 @@ Local Notation terminated := (ret false) (only parsing).
 
 (******************************)
 
-Proposition addressable_pred {n} : addressable (S n) -> addressable n.
-Proof.
-  intros H. apply (@addressable_le (S n)).
-  - exact H.
-  - lia.
-Qed.
-
-(*******************************)
+(******************************)
 
 (** Optimized implementation *)
 Definition pushCode (z: Z) : list Z :=
@@ -278,7 +271,7 @@ Proof.
   unfold nCert;
     simp nSteps;
     unfold stdStart, chain, oneStep;
-    setoid_rewrite chain_ret_true.
+    setoid_rewrite chain_true.
   (* TODO: smon_rewrite is too slow. *)
   repeat setoid_rewrite bind_assoc.
   simpl nBefore.
@@ -299,7 +292,7 @@ let* x := pop64 in
 Proof.
   unfold nCert, code_isZero.
   simp nSteps.
-  setoid_rewrite chain_ret_true.
+  setoid_rewrite chain_true.
   unfold chain.
 
 Lemma ncert_isZero :
@@ -311,7 +304,7 @@ Lemma ncert_isZero :
 Proof.
   unfold nCert, code_isZero.
   simp nSteps.
-  setoid_rewrite chain_ret_true.
+  setoid_rewrite chain_true.
   unfold chain.
 
 

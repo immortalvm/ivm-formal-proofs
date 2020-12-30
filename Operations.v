@@ -243,40 +243,52 @@ Module Core (MP: MachineParameters).
   Global Existing Instance offset_action.
   Global Existing Instance H_mon.
 
-  Notation "⫫" := (@fstMixer State).
-
   Existing Instance submixer_fst.
 
 
   (** *** Addressable  *)
 
   (** The address space may consist of multiple disjoint pieces. The
-      following predicate states that each piece consists of at least [n]
-      distinct addresses. *)
-  Definition addressable (n: nat) : Prop :=
-    forall a i, 0 < i < n -> offset i a <> a.
+      following predicate states that each piece containing [a] has at
+      least [n] distinct addresses. *)
+  Definition addressable (n: nat) a : Prop := forall i, 0 < i < n -> offset i a <> a.
 
-  Proposition addressable_neg {n} (Hn: addressable n) :
-    forall a i, 0 < i < n -> offset (-i) a <> a.
+  Proposition addressable_neg {n a} (Hn: addressable n a) : forall i, 0 < i < n -> offset (-i) a <> a.
   Proof.
-    intros a i Hi H.
-    apply (Hn a i Hi).
+    intros i Hi H.
+    apply (Hn i Hi).
     rewrite <- H at 1.
     rewrite <- Z_action_add.
     lia_rewrite (-i + i = 0%Z).
     apply Z_action_zero.
   Qed.
 
-  Proposition addressable_le {n} (Hn: addressable n) {m: nat} (Hm: m <= n):
-    addressable m.
+  Proposition addressable_le {n a} (Hn: addressable n a) {m: nat} (Hm: m <= n):
+    addressable m a.
   Proof.
     unfold addressable in *.
     intros. apply Hn. lia.
   Qed.
 
+  Proposition addressable_offset {n a} (Hn: addressable n a) z :
+    addressable n (offset z a).
+  Proof.
+    intros i Hi.
+    rewrite <- Z_action_add.
+    intros Ha.
+    apply (Hn i Hi).
+    apply (f_equal (offset (-z))) in Ha.
+    revert Ha.
+    setoid_rewrite <- Z_action_add.
+    lia_rewrite (z + i + -z = i).
+    lia_rewrite (z + -z = 0%Z).
+    now rewrite Z_action_zero.
+  Qed.
+
   Ltac addressable_tac :=
     try match goal with
-        | H : addressable ?n |- addressable ?m =>
+        | H : addressable ?n ?a |- addressable ?m ?b =>
+          try apply addressable_offset;
           apply (addressable_le H (m:=m));
           repeat (simpl length
                   || rewrite app_length
@@ -287,6 +299,8 @@ Module Core (MP: MachineParameters).
 
 
   (** *** Decidable subsets of the memory *)
+
+  Definition Memory' u := @restr Addr (fun a => available a -> option Cell) u.
 
   Instance MEM' u : Lens State (restr u) :=
     (restrLens u) ∘ MEM.
@@ -347,7 +361,7 @@ Module Core (MP: MachineParameters).
   Definition extr_spec := unfolded_eq (@extr).
 
   Global Instance confined_extr
-         {X} (ox: option X) : Confined ⫫ (extr ox).
+         {X} (ox: option X) : Confined fstMixer (extr ox).
   Proof.
     typeclasses eauto.
   Qed.
@@ -465,7 +479,7 @@ Module Core (MP: MachineParameters).
   Definition nAfter (n: nat) (a: Addr) : DSet Addr :=
     def (fun a' => exists i, (i<n)%nat /\ offset i a = a').
 
-  Proposition nAfter_zero n a : a ∈ nAfter (S n) a.
+  Proposition nAfter_head n a : a ∈ nAfter (S n) a.
   Proof.
     apply def_spec. exists 0. split.
     - lia.
@@ -473,7 +487,7 @@ Module Core (MP: MachineParameters).
   Qed.
 
   (* TODO: Repeat after section if necessary. *)
-  Hint Extern 3 (_ ∈ nAfter _ _) => rapply nAfter_zero : typeclass_instances.
+  Hint Extern 3 (_ ∈ nAfter _ _) => rapply nAfter_head : typeclass_instances.
 
   Proposition nAfter_succ n a : nAfter n (offset 1 a) ⊆ nAfter (S n) a.
   Proof.
@@ -710,7 +724,7 @@ Module Core (MP: MachineParameters).
       reflexivity.
   Qed.
 
-  Lemma storeMany_equation_2' a x u (H: addressable (S (length u))) :
+  Lemma storeMany_equation_2' a x u (H: addressable (S (length u)) a) :
     storeMany a (x :: u) = storeMany (offset 1 a) u;;
                           store a x.
   Proof.
@@ -719,9 +733,9 @@ Module Core (MP: MachineParameters).
     revert H.
     generalize (rev u). clear u. intros u H.
     simp storeMany.
-    revert a x.
+    revert a H x.
     induction u as [|y u IH];
-      intros a x;
+      intros a H x;
       simp storeMany;
       smon_rewrite.
 
@@ -742,12 +756,12 @@ Module Core (MP: MachineParameters).
       lia.
   Qed.
 
-  Lemma storeMany_action' a u v (H: addressable (length u + length v)) :
+  Lemma storeMany_action' a u v (H: addressable (length u + length v) a) :
     storeMany a (u ++ v) =
     storeMany (offset (length u) a) v;; storeMany a u.
   Proof.
-    revert a.
-    induction u as [|x u IH]; intros a.
+    revert a H.
+    induction u as [|x u IH]; intros a H.
     - cbn. rewrite Z_action_zero. simp storeMany. smon_rewrite.
     - simpl (_ ++ _).
       setoid_rewrite storeMany_equation_2'.
@@ -759,14 +773,16 @@ Module Core (MP: MachineParameters).
   Qed.
 
   Lemma storeMany_loadMany' a n (u: Cells n) {Y} (f: unit -> Cells n -> M Y) :
-    addressable n -> let* x := storeMany a (to_list u) in
-                    let* v := loadMany n a in
-                    f x v = storeMany a (to_list u);;
-                            f tt u.
+    addressable n a ->
+      let* x := storeMany a (to_list u) in
+      let* v := loadMany n a in
+      f x v =
+        storeMany a (to_list u);;
+        f tt u.
   Proof.
     intros H.
     smon_rewrite.
-    revert a; induction n; intros a.
+    revert a H; induction n; intros a H.
     - dependent elimination u. cbn.
       simp storeMany loadMany. smon_rewrite.
     - dependent elimination u as [Vector.cons (n:=n) x u]. simp to_list.
@@ -906,7 +922,7 @@ Module Core (MP: MachineParameters).
     - typeclasses eauto.
   Qed.
 
-  Lemma pushMany_alt u (H: addressable (length u)) :
+  Lemma pushMany_alt u (H: forall a, addressable (length u) a) :
     pushMany u = let* sp := get' SP in
                  let a := offset (- List.length u) sp in
                  put' SP a;;
@@ -924,7 +940,7 @@ Module Core (MP: MachineParameters).
       rewrite pushMany_action.
       smon_rewrite.
       set (f := offset (- length ([x] ++ u))).
-      rewrite IH; [|addressable_tac].
+      rewrite IH; [|intros sp; specialize (H sp); addressable_tac].
       clear IH.
       unfold pushMany.
       simpl rev.
@@ -940,6 +956,7 @@ Module Core (MP: MachineParameters).
       apply bind_extensional'.
       + f_equal. f_equal. cbn. lia.
       + intros [].
+        specialize (H sp).
         setoid_rewrite (storeMany_action' _ [x] u); [|addressable_tac].
         simp storeMany.
         smon_rewrite.
@@ -1052,7 +1069,7 @@ Module Core (MP: MachineParameters).
       |}.
   Definition extractImage_spec := unfolded_eq (extractImage).
 
-  Global Instance extractImage_confined img : Confined ⫫ (extractImage img).
+  Global Instance extractImage_confined img : Confined fstMixer (extractImage img).
   Proof. typeclasses eauto. Qed.
 
   Global Opaque extractImage.
@@ -1094,6 +1111,504 @@ Module Core (MP: MachineParameters).
 
   Global Opaque newFrame.
 
+  (****************************)
+
+  Close Scope N.
+
+  Proposition addressable_pred {n a} : addressable (S n) a -> addressable n a.
+  Proof.
+    intros H. apply (@addressable_le (S n)).
+    - exact H.
+    - lia.
+  Qed.
+
+  (***)
+
+  Inductive nAvailable : nat -> Addr -> Prop :=
+  | nAvailable_O a : nAvailable 0 a
+  | nAvailable_S {n a} (H0: available a) (H1: nAvailable n (offset 1 a)) : nAvailable (S n) a.
+
+  Proposition nAvailable_unique {n a} (H H': nAvailable n a) : H = H'.
+  Proof.
+    revert a H H'. induction n; intros a H H'.
+    - dependent elimination H.
+      dependent elimination H'.
+      reflexivity.
+    - dependent elimination H as [nAvailable_S H0 H1].
+      dependent elimination H' as [nAvailable_S H0' H1'].
+      f_equal.
+      + apply is_true_unique.
+      + apply IHn.
+  Qed.
+
+  Proposition nAvailable_spec n a :
+    nAvailable n a <-> forall (i:nat), i < n -> available (offset i a).
+  Proof.
+    revert a. induction n; intros a.
+    - split; intros H.
+      + dependent elimination H. lia.
+      + constructor.
+    - specialize (IHn (offset 1 a)).
+      destruct IHn as [IH1 IH2].
+      split; intros H.
+      + dependent elimination H as [ @nAvailable_S n a H0 H1 ].
+        intros i Hi.
+        by_lia (i = 0 \/ 0 < i) as Hor.
+        destruct Hor as [HO|HS].
+        * subst i. rewrite Z_action_zero. exact H0.
+        * specialize (IH1 H1 (i - 1)). by_lia (i - 1 < n) as HH.
+          specialize (IH1 HH). revert IH1. rewrite <- Z_action_add.
+          lia_rewrite (1 + (i - 1)%nat = i)%Z.
+          tauto.
+      + constructor.
+        * specialize (H 0). rewrite Z_action_zero in H.
+          apply H. lia.
+        * apply IH2. intros i Hi.
+          rewrite <- Z_action_add.
+          lia_rewrite (1 + i = S i)%Z.
+          apply H. lia.
+  Qed.
+
+  Global Instance nAvailable_decidable n a : Decidable (nAvailable n a).
+  Proof.
+    apply (decidable_transfer (nAvailable_spec n a)).
+  Qed.
+
+  Proposition nAvailable_succ n a :
+    nAvailable (S n) a <-> available a /\ nAvailable n (offset 1 a).
+  Proof.
+    split.
+    - intros H. dependent elimination H. split; assumption.
+    - intros [H0 H1]. constructor; assumption.
+  Qed.
+
+  (***)
+
+  Proposition nAfter_disjoint_spec u n a :
+    u # nAfter n a <-> forall i, (i<n)%nat -> not (offset i a ∈ u).
+  Proof.
+    unfold nAfter, disjoint.
+    setoid_rewrite def_spec.
+    split; intro H.
+    - intros i Hi Ho.
+      apply (H (offset i a)).
+      split.
+      + exact Ho.
+      + now exists i.
+    - intros x [Hx [i [Hi Ha]]].
+      apply (H i Hi).
+      rewrite Ha.
+      exact Hx.
+  Qed.
+
+  Global Instance nAfter_disjoint_decidable u n a : Decidable (u # nAfter n a).
+  Proof.
+    refine (decidable_transfer (nAfter_disjoint_spec _ _ _)).
+  Defined.
+  
+  Proposition not_nAfter_disjoint_spec u n a :
+    not (u # nAfter n a) -> exists i, (i<n)%nat /\ offset i a ∈ u.
+  Proof.
+    rewrite nAfter_disjoint_spec.
+    intros H.
+    apply bounded_all_neg in H.
+    - setoid_rewrite decidable_raa in H. exact H.
+    - typeclasses eauto.
+  Qed.
+  
+  Definition not_nAfter_disjoint_evidence u n a (H : not (u # nAfter n a)) :
+    { x: Addr | x ∈ u /\ exists i, (i < n)%nat /\ offset i a = x }.
+  Proof.
+    apply not_nAfter_disjoint_spec in H.
+    apply bounded_evidence in H; [ | typeclasses eauto ].
+    destruct H as [i [Hi Hu]].
+    refine (exist _ (offset i a) _).
+    split.
+    - exact Hu.
+    - now exists i.
+  Defined.
+
+  Proposition nAfter_empty a : nAfter 0 a = ∅%DSet.
+  Proof.
+    apply extensionality.
+    intros x.
+    unfold nAfter.
+    rewrite def_spec.
+    transitivity False.
+    - split.
+      + intros [i [Hi _]]. lia.
+      + tauto.
+    - set (H := @empty_spec _ x). tauto.
+  Qed.
+
+  Hint Rewrite nAfter_empty : nAfter.
+
+  (* TODO: Useful? *)
+  Lemma nAfter_action (a: Addr) (m n: nat) :
+    nAfter (m + n) a = (nAfter m a ∪ nAfter n (offset m a))%DSet.
+  Proof.
+    revert a; induction m; intros a.
+    - cbn. rewrite nAfter_empty. rewrite Z_action_zero.
+      apply extensionality. intro x.
+      rewrite union_spec.
+      unfold nAfter.
+      setoid_rewrite def_spec.
+      split.
+      + intros H. right. exact H.
+      + intros [H|H].
+        * contradict H.
+        * exact H.
+
+    - apply extensionality. intro x.
+      rewrite union_spec.
+      unfold nAfter.
+      setoid_rewrite def_spec.
+      split.
+      + intros [i [H1 H2]].
+        by_lia (i < S m \/ S m <= i < S m + n)%nat as H.
+        destruct H as [H|H].
+        * left. exists i. split.
+          -- exact H.
+          -- exact H2.
+        * right. exists (i - S m)%nat. split.
+          -- lia.
+          -- rewrite <- H2, <- Z_action_add. f_equal. lia.
+      + intros [[i [H1 H2]] | [i [H1 H2]]].
+        * exists i. split.
+          -- lia.
+          -- exact H2.
+        * exists (S m + i)%nat. split.
+          -- lia.
+          -- rewrite <- H2, <- Z_action_add. f_equal. lia.
+  Qed.
+
+  Proposition nAfter_succ_spec n a x :
+    x ∈ nAfter (S n) a <-> x = a \/ x ∈ nAfter n (offset 1 a).
+  Proof.
+    unfold nAfter. repeat rewrite def_spec. split.
+    - intros [i [Hi Hx]].
+      by_lia (i = 0 \/ 0 < i) as Hor.
+      destruct Hor as [H0|H1].
+      + subst i.
+        rewrite Z_action_zero in Hx.
+        left. symmetry. exact Hx.
+      + right. exists (Nat.pred i). split; [lia | ].
+        rewrite <- Z_action_add. rewrite <- Hx.
+        f_equal. lia.
+    - intros [He|[i [Hi Hx]]].
+      + subst x. exists 0. split.
+        * lia.
+        * apply Z_action_zero.
+      + exists (S i). split.
+        * lia.
+        * lia_rewrite (S i = (1 + i)%Z :> Z). rewrite Z_action_add.
+          exact Hx.
+  Qed.
+
+  Definition nAfter_tail {n a} : nAfter n (offset 1 a) ⊆ nAfter (S n) a.
+  Proof.
+    intros x.
+    by_lia (S n = (1 + n)%nat) as HH.
+    rewrite HH, nAfter_action, union_spec.
+    right. exact H.
+  Defined.
+
+  (***)
+
+  Proposition emptyMem_is_void : MEM' ∅ ≃ fstMixer.
+  Proof.
+    unfold MEM'.
+    rewrite composite_compositeMixer, emptyLens_is_void.
+    apply fstMixer_composite.
+  Qed.
+
+  Proposition put_void {A} (LA: Lens State A) (H: (LA|fstMixer)) a : put' LA a = ret tt.
+  Proof.
+    unfold Submixer in H. cbn in H.
+    rewrite put_spec. cbn.
+    enough (forall s, update s a = s) as Hu.
+    - setoid_rewrite Hu. smon_rewrite.
+    - intros s. specialize (H s s (update s a)).
+      revert H. lens_rewrite. tauto.
+  Qed.
+
+  Corollary put_empty f : put' (MEM' ∅) f = ret tt.
+  Proof.
+    apply put_void.
+    clear f.
+    rewrite emptyMem_is_void.
+    reflexivity.
+  Qed.
+
+  (*******)
+
+  Definition memoryAfter_head {n a} (f: Memory' (nAfter (S n) a)) (Ha: available a) : option Cell :=
+    f a (nAfter_head n a) Ha.
+
+  Definition memoryAfter_head' {n a} (f: Memory' (nAfter (S n) a)) : option Cell :=
+    match decide (available a) with
+    | left Ha => memoryAfter_head f Ha
+    | _ => None
+    end.
+
+  Definition memoryAfter_tail {n a} (f: Memory' (nAfter (S n) a)) :
+      Memory' (nAfter n (offset 1 a)) := fun x H Hx => f x (nAfter_tail _ H) Hx.
+
+  Local Open Scope vector.
+
+  Equations fromMem {n a} (f: Memory' (nAfter n a)) : option (Cells n) :=
+    fromMem (n:=0) f := Some [];
+    fromMem (n:=S n) (a:=a) f :=
+      match memoryAfter_head' f, fromMem (memoryAfter_tail f) with
+      | Some x, Some u => Some (x :: u)
+      | _, _ => None
+      end.
+
+  Definition toMem a {n} (u: Cells n) : Memory' (nAfter n a) :=
+    fun x Hn Ha =>
+      match findLast (fun i => offset i a = x) n with
+      | SomeWitness _ _ Hi _ _ => Some (Vector.nth u (Fin.of_nat_lt Hi))
+      | _ => None
+      end.
+
+  Proposition toMem_head a x {n} (u: Cells n) (Hadd: addressable (S n) a) (Ha: available a) :
+    memoryAfter_head (toMem a (x :: u)) Ha = Some x.
+  Proof.
+    unfold memoryAfter_head.
+    unfold toMem.
+    set (fl := findLast _ _).
+    (* specialize (Hadd a). *)
+    cbn beta in Hadd.
+    dependent elimination fl as [ @SomeWitness _ _ i Hi Hp Ho | NoWitness _ _ Ho ];
+    cbn match beta.
+    - f_equal.
+      enough (i = 0%nat) as Hi'; [ subst i; reflexivity | ].
+      apply decidable_raa.
+      intros Hi'.
+      apply (Hadd i).
+      + lia.
+      + apply Hp.
+    - exfalso.
+      apply (Ho 0%nat).
+      + lia.
+      + apply Z_action_zero.
+  Qed.
+
+  Local Open Scope Z.
+
+  Proposition toMem_tail a x {n} (u: Cells n) :
+    memoryAfter_tail (toMem a (x :: u)) = toMem (offset 1 a) u.
+  Proof.
+    unfold memoryAfter_tail.
+    extensionality b.
+    extensionality Hin.
+    extensionality Ha.
+    unfold toMem.
+    set (fl := findLast _ (S n)).
+    set (fl' := findLast _ n).
+    dependent elimination fl as [ @SomeWitness _ _ i Hi Hp Ho | NoWitness _ _ Ho ].
+    - assert (i <> 0)%nat as Hi0.
+      {
+        intro. subst i.
+        unfold nAfter in Hin.
+        rewrite def_spec in Hin.
+        destruct Hin as [j [Hj0 Hj1]].
+        apply (Ho (S j)); [ lia | ].
+        rewrite <- Z_action_add in Hj1.
+        lia_rewrite (S j = 1 + j :> Z).
+        apply Hj1.
+      }
+      by_lia (0 < i)%nat as H0i.
+      dependent elimination fl' as [ @SomeWitness _ _ i' Hi' Hp' Ho' | NoWitness _ _ Ho' ];
+      cbn match beta;
+      [ f_equal | exfalso ].
+      + enough (i = S i') as He.
+        * subst i. cbn. f_equal. apply Fin.of_nat_ext.
+        * cbn beta in Hp, Hp'.
+          apply decidable_raa. intro Hne.
+          rewrite <- Z_action_add in Hp'.
+          by_lia (i < S i' \/ S i' < i)%nat as Hor.
+          destruct Hor as [Hl|Hl].
+          -- apply (Ho (S i')); [ lia | ]. rewrite <- Hp'. f_equal. lia.
+          -- apply (Ho' (Nat.pred i)); [ lia | ].
+            rewrite <- Z_action_add.
+            lia_rewrite (1 + Nat.pred i = i).
+            exact Hp.
+      + apply (Ho' (pred i)); [ lia | ].
+        rewrite <- Z_action_add.
+        lia_rewrite (1 + Nat.pred i = i).
+        exact Hp.
+    - dependent elimination fl' as [ @SomeWitness _ _ i' Hi' Hp' Ho' | NoWitness _ _ Ho' ];
+      cbn match beta;
+      [ exfalso | reflexivity ].
+      apply (Ho (S i')); [ lia | ].
+      cbn in Hp'.
+      rewrite <- Z_action_add in Hp'.
+      lia_rewrite (S i' = 1 + i' :> Z).
+      exact Hp'.
+  Qed.
+
+  Lemma fromMem_toMem a {n} (u: Cells n) (Hadd: addressable n a) (Hav: nAvailable n a) :
+    fromMem (toMem a u) = Some u.
+  Proof.
+    revert a u Hadd Hav. induction n; intros a u Hadd Hav.
+    - dependent elimination u. simp fromMem. reflexivity.
+    - dependent elimination u as [ x :: u ].
+      dependent elimination Hav as [ @nAvailable_S n a H0 H1 ].
+      simp fromMem.
+      unfold memoryAfter_head'. decided H0.
+      rewrite toMem_head, toMem_tail, IHn.
+      + reflexivity.
+      + apply addressable_offset. apply (addressable_pred Hadd).
+      + exact H1.
+      + exact Hadd.
+  Qed.
+
+  (****)
+
+  Proposition getMem''_spec_member {a u} (H: a ∈ u) :
+    get' (MEM'' a) =
+      let* um := get' (MEM' u) in
+      ret (um a H).
+  Proof.
+    repeat rewrite get_spec. cbn. smon_rewrite.
+  Qed.
+
+  Proposition getMem'_spec_subset {u v} (H: u ⊆ v) :
+    get' (MEM' u) =
+      let* vm := get' (MEM' v) in
+      ret (proj (Lens:=subsetLens H) vm).
+  Proof.
+    repeat rewrite get_spec. cbn. smon_rewrite.
+  Qed.
+
+  Lemma loadMany_spec_fromMem n a :
+    loadMany n a =
+      let* f := get' (MEM' (nAfter n a)) in
+      extr (fromMem f).
+  Proof.
+    revert a. induction n; intros a.
+    - simp loadMany.
+      setoid_rewrite fromMem_equation_1.
+      rewrite extr_spec.
+      smon_rewrite.
+    - simp loadMany.
+      setoid_rewrite fromMem_equation_2.
+      setoid_rewrite (IHn (offset 1 a)).
+      rewrite load_spec''.
+      unfold memoryAfter_head'.
+      destruct (decide (available a)) as [Ha|Ha];
+      smon_rewrite.
+
+      smon_ext' (MEM' (nAfter (S n) a)) f.
+      rewrite lens_put_get.
+
+      unfold memoryAfter_head.
+      setoid_rewrite (getMem''_spec_member (nAfter_head n a)).
+      smon_rewrite.
+      rewrite <- confined_put; [ | apply confined_neutral; typeclasses eauto ].
+
+      setoid_rewrite (getMem'_spec_subset nAfter_tail).
+      setoid_rewrite bind_assoc.
+      setoid_rewrite lens_put_get.
+      rewrite confined_put; [ | apply confined_neutral; typeclasses eauto ].
+      apply bind_extensional. intros [].
+      repeat rewrite extr_spec.
+
+      destruct (f a (nAfter_head n a) Ha) as [x|]; smon_rewrite.
+      cbn.
+      unfold memoryAfter_tail.
+      set (ov := fromMem _).
+      destruct ov as [v|]; smon_rewrite.
+  Qed.
+
+  (***)
+
+  Lemma storeMany_spec_toMem a {n} (u: Cells n) :
+    storeMany a (to_list u) =
+      assume' (nAvailable n a);;
+      put' (MEM' (nAfter n a)) (toMem a u).
+  Proof.
+    (* TODO: Simplify / automate *)
+    revert a u. induction n; intros a u.
+    - dependent elimination u. simp storeMany. unfold toMem.
+      rewrite decide_true; [ | constructor ].
+      now rewrite nAfter_empty, put_empty, ret_tt_bind.
+    - dependent elimination u as [ @Vector.cons x n u ].
+      simp to_list storeMany. rewrite IHn. clear IHn.
+      rewrite store_spec''.
+      rewrite simplify_assume.
+      rewrite bind_assoc.
+      rewrite <- confined_put; [ | apply confined_neutral; typeclasses eauto ].
+      rewrite <- bind_assoc.
+      apply bind_extensional'.
+      + rewrite <- assume'_and.
+        apply assume'_proper.
+        symmetry.
+        apply nAvailable_succ.
+      + intros [].
+        repeat rewrite put_spec.
+        smon_rewrite.
+        apply bind_extensional'; [ reflexivity | intros s ].
+        Opaque Z.add. (* TODO*)
+        cbn.
+        unfold compose.
+        rewrite update_update.
+        f_equal.
+        f_equal.
+        extensionality b.
+
+        destruct (decide (b ∈ nAfter (S n) a)) as [Ht|Hf].
+        * pose (Ht' := Ht).
+          setoid_rewrite nAfter_succ_spec in Ht'.
+          destruct Ht' as [Heq|Ho].
+          -- subst b.
+            rewrite proj_update, eqdec_eqrefl. cbn.
+            extensionality Ha.
+
+            destruct (decide _) as [Htt|Hff].
+            ++ rewrite <- (toMem_tail a x).
+              generalize (toMem a (x :: u)). intros mm.
+              unfold memoryAfter_tail.
+              f_equal.
+              apply membership_unique.
+            ++ transitivity (memoryAfter_head (toMem a (x :: u)) Ha).
+              ** symmetry. apply toMem_head.
+                intros i Hi Ho.
+                apply Hff.
+                unfold nAfter. rewrite def_spec.
+                exists (Z.to_nat (i - 1)).
+                split; [ lia | ].
+                rewrite <- Z_action_add.
+                rewrite nat_N_Z.
+                rewrite Z2Nat.id; [ | lia ].
+                lia_rewrite (1 + (i - 1) = i).
+                exact Ho.
+              ** unfold memoryAfter_head.
+                f_equal.
+                apply membership_unique.
+          -- decided Ho.
+            rewrite <- (toMem_tail a x).
+            unfold memoryAfter_tail.
+            extensionality Hb.
+            f_equal.
+            apply membership_unique.
+        * destruct (decide (b ∈ nAfter n (offset 1 a))) as [Htt|Hff].
+          -- contradict Hf. rewrite nAfter_succ_spec.
+            right. exact Htt.
+          -- rewrite proj_update.
+            extensionality Hb.
+            destruct (decide (a = b)) as [Hab|Hab]; [ | reflexivity ].
+            destruct Hab.
+            contradict Hf.
+            apply nAfter_head.
+  Qed.
+
  End core_section.
 
 End Core.
+
+
+(** ** Repeat definition that were lost when then section ended. *)
+
+Global Ltac simp_loadMany := rewrite_strat (outermost (hints loadMany)).

@@ -117,6 +117,16 @@ Qed.
 
 Coercion lens2mixer : Lens >-> Mixer.
 
+Proposition fstMixer_composite {S A} (LA: Lens S A) : compositeMixer fstMixer LA ≃ fstMixer.
+Proof.
+  intros x y. cbn. apply update_proj.
+Qed.
+
+Proposition sndMixer_composite {S A} (LA: Lens S A) : compositeMixer sndMixer LA ≃ LA.
+Proof.
+  intros x y. reflexivity.
+Qed.
+
 
 (** ** Independent lenses *)
 
@@ -230,7 +240,7 @@ Section category_facts_section.
 
   Context {A X Y : Type}.
 
-  Instance compositeLens_proper :
+  Global Instance compositeLens_proper :
     Proper (lensEq ==> lensEq ==> lensEq) (@compositeLens A X Y).
   Proof.
     intros Lx Lx' Hx
@@ -327,6 +337,51 @@ Hint Extern 2 (?Ly ∘ ?Lx | ?Lx) =>
 Hint Extern 2 (@Submixer _ (@lens2mixer _ _ (@compositeLens _ _ _ ?Ly ?Lx))
                          (@lens2mixer _ _ ?Lx)) =>
     apply sublens_comp' : typeclass_instances.
+
+Section sublensFactor_section.
+
+  Arguments proj {_ _} _ _.
+  Arguments update {_ _} _ _ _.
+
+  (* TODO: Don't we have this already? Safe as global? *)
+  #[refine]
+  Global Instance sublensFactor
+    {A X Y} {LX: Lens A X} {LY: Lens A Y}
+    (HS: (LX|LY)) (a:A) : Lens Y X :=
+  {
+    proj y := proj LX (update LY a y);
+    update y x := proj LY (update LX (update LY a y) x);
+  }.
+  Proof.
+    - intros y x. lens_rewrite.
+      specialize (HS a (update LY a y) (update LX a x)).
+      revert HS. cbn. lens_rewrite.
+      intros HS. rewrite <- HS. lens_rewrite.
+    - intros y.
+      specialize (HS a (update LY a y) (update LY a y)).
+      revert HS. cbn. lens_rewrite.
+    - intros y x x'.
+      specialize (HS
+        (update LY a y)
+        (update LX (update LY a y) x)
+        (update LX a x')).
+      cbn in HS. revert HS. lens_rewrite.
+      intros HS. rewrite HS. lens_rewrite.
+  Defined.
+
+  Lemma sublensFactor_spec
+    {A X Y} {LX: Lens A X} {LY: Lens A Y}
+    (HS: (LX|LY)) (a:A) : sublensFactor HS a ∘ LY ≅ LX.
+  Proof.
+    intros b x. cbn. unfold compose.
+    remember (HS a b (update LX a x)) as HH eqn:HHe; clear HHe.
+    revert HH. cbn. lens_rewrite. intros HH.
+    rewrite HH. clear HH. lens_rewrite.
+    specialize (HS b b (update LX b x)).
+    revert HS. cbn. lens_rewrite. congruence.
+  Qed.
+
+End sublensFactor_section.
 
 
 (** ** Products and projections *)

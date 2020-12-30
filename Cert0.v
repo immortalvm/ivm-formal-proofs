@@ -16,75 +16,7 @@ Global Opaque next.
 Open Scope Z.
 
 
-(** ** Preliminaries / to be moved *)
-
-(* TODO: Delete / move to end of Operations.v. *)
-(* Notation "⫫" := (@fstMixer State). *)
-
-(* TODO: Move *)
-Proposition sub_put_spec {A B} {LA: Lens State A} {LB: Lens A B} (b: B) :
-  put' (LB ∘ LA) b = let* a := get' LA in
-                     put' LA (update a b).
-Proof.
-  setoid_rewrite put_spec'.
-  setoid_rewrite get_spec.
-  smon_rewrite.
-Qed.
-
-(* TODO: Make definition in Operations.v global instead. *)
-Global Ltac simp_loadMany := rewrite_strat (outermost (hints loadMany)).
-
-(* TODO: Move to Operations.v ? *)
-Global Opaque loadMany.
-Global Opaque load.
-
-Proposition postpone_assume P {DP: Decidable P} {X} (mx: M X) {Y} (f: X -> M Y) :
-  assume P;;
-  let* x := mx in
-  f x = let* x := mx in
-        assume P;;
-        f x.
-Proof.
-  destruct (decide P) as [H|H]; smon_rewrite.
-Qed.
-
-Lemma assume_cons {A} (EA: EqDec A) (a a': A) n (u u': vector A n) {X} (mx: M X) :
-  assume (a :: u = a' :: u');;
-  mx = assume (a = a');;
-       assume (u = u');;
-       mx.
-Proof.
-  destruct (decide (a :: u = a' :: u')) as [He|He].
-  - rewrite ret_bind.
-    apply cons_inj in He.
-    destruct He as [Ha Hu].
-    decided Ha.
-    decided Hu.
-    now do 2 rewrite ret_bind.
-  - destruct (decide (a = a')) as [Ha|Ha];
-      destruct (decide (u = u')) as [Hu|Hu].
-    1: exfalso. congruence.
-    all: smon_rewrite.
-Qed.
-
-
-(* TODO: Move to Init.v ? *)
-
-Proposition vector_map_equation_1 {A B} (f: A -> B) : Vector.map f [] = [].
-Proof.
-  reflexivity.
-Qed.
-
-Proposition vector_map_equation_2 {A B} (f: A -> B) (x: A) {n} (u: vector A n) : Vector.map f (x :: u) = f x :: Vector.map f u.
-Proof.
-  reflexivity.
-Qed.
-
-Hint Rewrite @vector_map_equation_1 : map.
-Hint Rewrite @vector_map_equation_2 : map.
-
-Global Opaque Vector.map.
-
+(***)
 
 Lemma next_1_helper (op: Z) (Hop: 0 <= op < 256) :
   (Vector.map toB8 [op] : Bytes 1) = Z.to_N op :> N.
@@ -106,88 +38,6 @@ Proof.
     lia.
 Qed.
 
-
-Proposition chain_ret_true u : chain u (ret true) = u.
-Proof.
-  unfold chain.
-  rewrite <- bind_ret.
-  apply bind_extensional.
-  intros [|]; reflexivity.
-Qed.
-
-(* TODO: Move *)
-Corollary toBits_cong' n z : cong n (toBits n z) z.
-Proof.
-  rewrite ofN_bitsToN, fromBits_toBits_mod.
-  apply cong_mod.
-  lia.
-Qed.
-
-(* TODO: Move *)
-Hint Opaque cong : rewrite.
-
-(* TODO: Move *)
-Instance cong_equivalence n : Equivalence (cong n).
-Proof.
-  typeclasses eauto.
-Qed.
-
-(* TODO: Move *)
-Ltac cong_tac :=
-  apply toBits_cong;
-  rewrite toBits_cong';
-  apply eq_cong;
-  lia.
-
-(* TODO: Move *)
-Lemma nAfter_action (a: B64) (m n: nat) :
-  nAfter (m + n) a = (nAfter m a ∪ nAfter n (offset m a))%DSet.
-Proof.
-  revert a; induction m; intros a.
-  - unfold offset. cbn.
-    rewrite ofN_bitsToN, toBits_fromBits.
-    apply extensionality. intro x.
-    rewrite union_spec.
-    unfold nAfter.
-    setoid_rewrite def_spec.
-    split.
-    + intros H. right. exact H.
-    + intros [H|H].
-      * exfalso. destruct H as [i [H _]]. lia.
-      * exact H.
-
-  - unfold offset.
-    apply extensionality. intro x.
-    rewrite union_spec.
-    unfold nAfter.
-    setoid_rewrite def_spec.
-    split.
-    + intros [i [H1 H2]].
-      by_lia (i < S m \/ S m <= i < S m + n)%nat as H.
-      destruct H as [H|H].
-      * left. exists i. split.
-        -- exact H.
-        -- exact H2.
-      * right. exists (i - S m)%nat. split.
-        -- lia.
-        -- rewrite <- H2. cong_tac.
-    + intros [[i [H1 H2]] | [i [H1 H2]]].
-      * exists i. split.
-        -- lia.
-        -- exact H2.
-      * exists (S m + i)%nat. split.
-        -- lia.
-        -- rewrite <- H2. cong_tac.
-Qed.
-
-(* TODO: Move *)
-Instance cong_toBits_proper n : Proper (cong n ==> eq) (toBits n).
-Proof. intros z z' Hz. apply toBits_cong. exact Hz. Qed.
-
-(* TODO: Move *)
-Corollary fromBits_toBits' n (u: Bits n) : toBits n u = u.
-Proof. rewrite ofN_bitsToN. apply toBits_fromBits. Qed.
-
 (* TODO: Useful? *)
 Proposition generalizer
       {MP1 : MachineParams1}
@@ -208,248 +58,6 @@ Proof.
   reflexivity.
 Qed.
 
-(* TODO: Move to Mon.v *)
-Lemma put_get_prime
-      {MP1 : MachineParams1}
-      {MP2 : MachineParams2}
-      {X : Type}
-      {LX: Lens State X} (x: X) : put' LX x;; get' LX = put' LX x;; ret x.
-Proof.
-  (* TODO: Use lens_transfer tactic *)
-  setoid_rewrite get_spec.
-  setoid_rewrite put_spec'.
-  repeat rewrite <- bind_spec.
-  smon_rewrite'.
-Qed.
-
-(* TODO: Move. *)
-(** Making this an instance confuses the proof search.
-    Maybe this could somehow be made into an instance of [Proper] instead? *)
-Proposition decidable_proper {P} {D: Decidable P} {Q} (H: Q <-> P) : Decidable Q.
-Proof.
-  destruct D; [left|right]; tauto.
-Defined.
-
-(* TODO: Move *)
-Lemma bounded_all_neg P {DP: forall (x:nat), Decidable (P x)} n :
-  not (forall x, (x < n)%nat -> P x) -> (exists x, (x < n)%nat /\ not (P x)).
-Proof.
-  induction n; intro H.
-  - exfalso. apply H. intros x Hx. exfalso. lia.
-  - destruct (decide (P n)) as [Hd|Hd].
-    + assert (~ forall x : nat, (x < n)%nat -> P x) as Hnot.
-      * intros Hno.
-        apply H.
-        intros x Hx.
-        by_lia (x < n \/ x = n)%nat as H0.
-        destruct H0 as [H1|H2].
-        -- apply Hno. exact H1.
-        -- destruct H2. exact Hd.
-      * specialize (IHn Hnot).
-        destruct IHn as [x [Hx Hp]].
-        exists x. split.
-        -- lia.
-        -- exact Hp.
-    + exists n. split.
-      * lia.
-      * exact Hd.
-Qed.
-
-(* TODO: Move. Are there better ways to do this? *)
-Definition bounded_evidence
-           P {DP: forall (x:nat), Decidable (P x)}
-           n (H: exists x, (x < n)%nat /\ P x) : { x: nat | (x < n)%nat /\ P x }.
-Proof.
-  induction n.
-  - exfalso. destruct H as [x [H1 H2]]. lia.
-  - specialize (DP n). destruct DP as [H1|H2].
-    + refine (exist _ n _). split; [lia | exact H1].
-    + assert (exists (x: nat), (x < n)%nat /\ P x) as He.
-      * destruct H as [x [Hsn Hx]].
-        exists x. split; [ | exact Hx ].
-        by_lia (x < n \/ x = n)%nat as Hn.
-        destruct Hn as [Hn|Hn]; [ exact Hn | ].
-        destruct Hn. exfalso. exact (H2 Hx).
-      * specialize (IHn He).
-        destruct IHn as [x [IH1 IH2]].
-        refine (exist _ x _).
-        split; [lia | exact IH2].
-Defined.
-
-Proposition nAfter_disjoint_spec u n a :
-  u # nAfter n a <-> forall i, (i<n)%nat -> not (offset i a ∈ u).
-Proof.
-  unfold nAfter, disjoint.
-  setoid_rewrite def_spec.
-  split; intro H.
-  - intros i Hi Ho.
-    apply (H (offset i a)).
-    split.
-    + exact Ho.
-    + now exists i.
-  - intros x [Hx [i [Hi Ha]]].
-    apply (H i Hi).
-    unfold offset.
-    rewrite Ha.
-    exact Hx.
-Qed.
-
-Instance nAfter_disjoint_decidable u n a : Decidable (u # nAfter n a).
-Proof.
-  refine (decidable_proper (nAfter_disjoint_spec _ _ _)).
-Defined.
-
-Proposition not_nAfter_disjoint_spec u n a :
-  not (u # nAfter n a) -> exists i, (i<n)%nat /\ offset i a ∈ u.
-Proof.
-  rewrite nAfter_disjoint_spec.
-  intros H.
-  apply bounded_all_neg in H.
-  - setoid_rewrite decidable_raa in H. exact H.
-  - typeclasses eauto.
-Qed.
-
-Definition not_nAfter_disjoint_evidence u n a (H : not (u # nAfter n a)) :
-  { x: Addr | x ∈ u /\ exists i, (i < n)%nat /\ offset i a = x }.
-Proof.
-  apply not_nAfter_disjoint_spec in H.
-  apply bounded_evidence in H; [ | typeclasses eauto ].
-  destruct H as [i [Hi Hu]].
-  refine (exist _ (offset i a) _).
-  split.
-  - exact Hu.
-  - now exists i.
-Defined.
-
-
-(* TODO: Move to Binary.v *)
-(** Cf. [bitsToBytes] *)
-Definition bytesToLongs {n} (u: Bytes (n * 8)) : vector B64 n.
-Proof.
-  induction n.
-  - exact [].
-  - simpl in u.
-    dependent elimination u as [b0 :: b1 :: b2 :: b3 :: b4 :: b5 :: b6 :: b7 :: u].
-    exact ((b0 ++ b1 ++ b2 ++ b3 ++ b4 ++ b5 ++ b6 ++ b7) :: IHn u).
-Defined.
-
-Proposition bytesToLongs_equation_1 : @bytesToLongs (0 * 8) [] = [].
-Proof. reflexivity. Qed.
-
-Proposition bytesToLongs_equation_2 {n} b0 b1 b2 b3 b4 b5 b6 b7 (u: Bytes (n * 8)) :
-  @bytesToLongs (S n) (b0 :: b1 :: b2 :: b3 :: b4 :: b5 :: b6 :: b7 :: u) =
-  (b0 ++ b1 ++ b2 ++ b3 ++ b4 ++ b5 ++ b6 ++ b7) :: bytesToLongs u.
-Proof. reflexivity. Qed.
-
-Hint Rewrite bytesToLongs_equation_1 @bytesToLongs_equation_2 : bytesToLongs.
-Global Opaque bytesToLongs.
-
-
-Equations popN (n: nat) : M (vector B64 n) :=
-  popN 0 := ret [];
-  popN (S n) := let* h := pop64 in
-                let* r := popN n in
-                ret (h :: r).
-
-(* TODO: Move *)
-Global Opaque popMany.
-
-Proposition bytesToBits_equation_2' {n} b (u: Bytes n) :
-  @bytesToBits (S n) (b :: u) = b ++ bytesToBits u.
-Proof.
-  dependent elimination b as [b0 :: b1 :: b2 :: b3 :: b4 :: b5 :: b6 :: b7 :: []].
-  simp bytesToBits.
-  reflexivity.
-Qed.
-
-(* Proposition append_nil {A} {n} (u: vector A n) : u ++ [] = u. *)
-
-Proposition bytesToLongs_equation_2' {n} b0 b1 b2 b3 b4 b5 b6 b7 (u: Bytes (n * 8)) :
-  @bytesToLongs (S n) (b0 :: b1 :: b2 :: b3 :: b4 :: b5 :: b6 :: b7 :: u) =
-  (([b0; b1; b2; b3; b4; b5; b6; b7] : Bytes 8) : B64) :: bytesToLongs u.
-Proof.
-  (* TODO: Can this be done more elegantly? *)
-  simp bytesToLongs.
-  repeat rewrite bytesToBits_equation_2'.
-  repeat f_equal.
-  dependent elimination b7 as [c0 :: c1 :: c2 :: c3 :: c4 :: c5 :: c6 :: c7 :: []].
-  reflexivity.
-Qed.
-
-Proposition popN_spec n :
-  popN n = let* u := popMany (n * 8) in
-           ret (bytesToLongs u).
-Proof.
-  induction n.
-  - simp popMany. smon_rewrite.
-  - simp popN.
-    change (S n * 8)%nat with (S (S (S (S (S (S (S (S (n * 8)))))))))%nat.
-    setoid_rewrite IHn.
-    unfold pop64.
-    simp popMany.
-    smon_rewrite.
-    setoid_rewrite bytesToLongs_equation_2'.
-    reflexivity.
-Qed.
-
-
-Proposition nAfter_empty a : nAfter 0 a = ∅%DSet.
-Proof.
-  apply extensionality.
-  intros x.
-  unfold nAfter.
-  rewrite def_spec.
-  transitivity False.
-  - split.
-    + intros [i [Hi _]]. lia.
-    + tauto.
-  - set (H := @empty_spec _ x). tauto.
-Qed.
-
-Proposition simp_assume P {DP: Decidable P} {X} (mx: M X) :
-  assume P;; mx = if decide P
-                  then mx
-                  else err.
-Proof.
-  destruct (decide P) as [H|H]; smon_rewrite.
-Qed.
-
-Ltac simp_assume := setoid_rewrite simp_assume.
-
-(* TODO: Move *)
-Instance decidable_iff {P Q} (H: P <-> Q) {DP: Decidable P} : Decidable Q.
-Proof.
-  destruct DP; [left|right]; tauto.
-Defined.
-
-(* Presumably in coq-hott this could be an actual instance of Proper. *)
-Proposition decide_proper
-            {P Q}
-            {DP: Decidable P}
-            {DQ: Decidable Q}
-            (H: P <-> Q)
-            {X} (x x':X) :
-  (if decide P then x else x') = (if decide Q then x else x').
-Proof.
-  destruct (decide P) as [Hp|Hp];
-    destruct (decide Q) as [Hq|Hq];
-    reflexivity || tauto.
-Qed.
-
-(* TODO: Move *)
-Proposition decide_true
-          {P} {DP: Decidable P} (H: P) {X} (x x':X) :
-  (if decide P then x else x') = x.
-Proof.
-  decided H. reflexivity.
-Qed.
-
-
-Proposition rew_cons [X m n x] [u: vector X m] [HS: S m = S n] (H: m = n) :
-  rew HS in (x :: u) = x :: rew H in u.
-Proof.
-  destruct H. revert HS. apply EqDec.UIP_K. reflexivity.
-Qed.
 
 Proposition shiftin_spec [X n] [x: X] [u: vector X n] (H: (n + 1 = S n)%nat) :
   shiftin x u = rew H in (u ++ [x]).
@@ -511,22 +119,7 @@ Proof.
     exact (H_cons n u x IHu).
 Qed.
 
-Hint Rewrite nAfter_empty : nAfter.
-
-(* TODO: Needed? *)
-(* Proposition nAfter_equation_2 a n :
-  nAfter (S n) a = (!{ a } ∪ nAfter n (offset 1 a))%DSet.
-Proof.
-  unfold nAfter.
-  unfold union.
-  apply extensionality.
-  intros x.
-  setoid_rewrite def_spec.
-  split.
-  - intros [i [Hi Hx]].
-    by_lia (i = n \/ i < n) as Hii.
-    destruct Hii as [Hi1|Hi2].
-Admitted. *)
+(***)
 
 Instance chain_propr : PropR chain.
 Proof.
@@ -542,26 +135,8 @@ Proof.
     + crush.
 Qed.
 
-
-(* TODO: Why do we have to repeat this? *)
-Global Opaque bytesToBits.
-
-Proposition bytesToBits_equation_3 (u: B8) : bytesToBits [u] = u.
-Proof.
-  dependent elimination u as [b0 :: b1 :: b2 :: b3 :: b4 :: b5 :: b6 :: b7 :: []].
-  reflexivity.
-Qed.
-
-Hint Rewrite @bytesToBits_equation_3 : bytesToBits.
-
 Proposition id_equation_1 X (x: X) : id x = x.
 Proof. reflexivity. Qed.
-
-(* TODO: Move *)
-Proposition negb_not (b: bool) : negb b <-> not b.
-Proof.
-  destruct b; now cbn.
-Qed.
 
 
 (** * Certified programs *)
@@ -779,7 +354,6 @@ Proof.
 Qed.
 
 
-
 (** ** Not exit *)
 
 (* TODO: Expand and maybe move *)
@@ -844,24 +418,6 @@ Proof.
   exact H.
 Qed.
 
-
-(* TODO: Move? *)
-Proposition bind_ret_helper {X Y Z} {mx: M X} {y: Y} {f: Y -> M Z} :
-  mx;; ret y >>= f = mx;; f y.
-Proof.
-  rewrite bind_assoc, ret_bind. reflexivity.
-Qed.
-
-(* TODO: Remove? *)
-Proposition not_terminated_helper X (mx: M X) Y (f: X -> M Y) :
-  let* x := mx in
-  let* y := f x in
-  not_terminated = (let* x := mx in f x);;
-                   not_terminated.
-Proof.
-  smon_rewrite.
-Qed.
-
 Ltac swallow1_tac :=
   unfold nCertN;
   apply swallow_step_lemma_N';
@@ -870,6 +426,7 @@ Ltac swallow1_tac :=
   apply (bind_propr _ _ _);
   [ simp oneStep' |  ];
   crush.
+
 
 (** ** Instructions with no operands *)
 
@@ -1154,31 +711,6 @@ Proof. cert_push_tac. Qed.
 
 (******************************************)
 
-Proposition Nat2N_inj_pow (m n : nat) : (m ^ n)%nat = (m ^ n)%N :> N.
-Proof.
-  induction n; [ reflexivity | ].
-  rewrite
-    Nnat.Nat2N.inj_succ,
-    N.pow_succ_r',
-    Nat.pow_succ_r',
-    Nnat.Nat2N.inj_mul,
-    IHn.
-  reflexivity.
-Qed.
-
-Proposition inj_succ (n: nat) : S n = Z.succ n :> Z.
-Proof.
-  now rewrite Nnat.Nat2N.inj_succ, N2Z.inj_succ.
-Qed.
-
-Proposition Nat2N_inj_lt (m n: nat): (m < n)%N <-> (m < n)%nat.
-Proof.
-  setoid_rewrite N2Z.inj_lt.
-  setoid_rewrite nat_N_Z.
-  symmetry.
-  apply Nat2Z.inj_lt.
-Qed.
-
 Definition isPow2 (z:Z) : Prop := exists (n: nat), z = 2 ^ n.
 
 Proposition isPow2_spec z : isPow2 z <-> exists (n: nat), z = (2 ^ n)%nat.
@@ -1215,8 +747,10 @@ Qed.
 
 Instance isPow2_decidable z : Decidable (isPow2 z).
 Proof.
-  exact (decidable_proper (isPow2_spec' z)).
+  exact (decidable_transfer (isPow2_spec' z)).
 Defined.
+
+(***)
 
 Definition toBytes' n z : vector Z n :=
   Vector.map Z.of_N (Vector.map bitsToN (toBytes n z)).
@@ -1226,26 +760,6 @@ Proof.
   unfold toBytes'.
   now do 2 rewrite (nth_map _ _ i i eq_refl).
 Qed.
-
-(* TODO: Move to Binary.v *)
-Corollary bytesToBits_injective {n} {u v: Bytes n} (H: bytesToBits u = bytesToBits v) : u = v.
-Proof.
-  apply (f_equal bitsToBytes) in H.
-  setoid_rewrite bitsToBytes_bytesToBits in H.
-  exact H.
-Qed.
-
-(* TODO: Move to Binary.v *)
-Corollary bitsToN_injective {n} {u v: Bits n} (H: bitsToN u = bitsToN v) : u = v.
-Proof.
-  Set Printing Coercions.
-  apply (f_equal Z.of_N) in H.
-  apply (f_equal (toBits n)) in H.
-  setoid_rewrite toBits_ofN_bitsToN in H.
-  exact H.
-Qed.
-
-(* See also N2Z.inj *)
 
 Proposition toBytes_eq {n x y} (H: cong (n * 8) x y) : toBytes n x = toBytes n y.
 Proof.
@@ -1258,9 +772,6 @@ Qed.
 
 (**********************)
 
-Open Scope DSet.
-
-(* TODO *)
 Proposition nAfter_nonempty n a :
   nAfter (S n) a = (nAfter n a) ∪ !{ offset n a }.
 Proof.
@@ -1276,27 +787,6 @@ Proof.
   - intros [[i [Hi Hx]] | Hor].
     + exists i. split; [lia | exact Hx].
     + exists n. split; [lia | exact Hor].
-Qed.
-
-Proposition disjoint_union_spec X (u v w: DSet X) :
-  u # v ∪ w <-> u # v /\ u # w.
-Proof.
-  unfold disjoint.
-  setoid_rewrite union_spec.
-  intuition.
-  apply (H0 x). (* TODO *)
-  intuition.
-Qed.
-
-Proposition disjoint_not_member' u x : u # !{x} <-> ~ x ∈ u.
-Proof.
-  split; intros H.
-  - apply disjoint_not_member.
-    apply disjoint_symmetric.
-    exact H.
-  - apply disjoint_symmetric.
-    apply disjoint_not_member.
-    exact H.
 Qed.
 
 Corollary disjoint_nAfter_nonempty u n a :
@@ -1327,55 +817,6 @@ Existing Instance RM_antisymmetric.
 
 (**************************)
 
-Section restriction_section.
-
-  Context {A : Type} {F : A -> Type}.
-
-  Proposition fullLens_is_all : @fullLens A F ≃ sndMixer.
-  Proof. easy. Qed.
-
-  Proposition emptyLens_is_void : @restrLens A F ∅ ≃ fstMixer.
-  Proof. intros f g. now extensionality a. Qed.
-
-End restriction_section.
-
-Proposition fstMixer_composite {S A} (LA: Lens S A) : compositeMixer fstMixer LA ≃ fstMixer.
-Proof.
-  intros x y. cbn. apply update_proj.
-Qed.
-
-Proposition sndMixer_composite {S A} (LA: Lens S A) : compositeMixer sndMixer LA ≃ LA.
-Proof.
-  intros x y. reflexivity.
-Qed.
-
-(************************)
-
-Proposition emptyMem_is_void : MEM' ∅ ≃ fstMixer.
-Proof.
-  unfold MEM'.
-  rewrite composite_compositeMixer, emptyLens_is_void.
-  apply fstMixer_composite.
-Qed.
-
-Proposition put_void {A} (LA: Lens State A) (H: (LA|fstMixer)) a : put' LA a = ret tt.
-Proof.
-  unfold Submixer in H. cbn in H.
-  rewrite put_spec. cbn.
-  enough (forall s, update s a = s) as Hu.
-  - setoid_rewrite Hu. smon_rewrite.
-  - intros s. specialize (H s s (update s a)).
-    revert H. lens_rewrite. tauto.
-Qed.
-
-Corollary put_empty f : put' (MEM' ∅) f = ret tt.
-Proof.
-  apply put_void.
-  clear f.
-  rewrite emptyMem_is_void.
-  reflexivity.
-Qed.
-
 (* TODO: Move to StateRel.v ? *)
 Instance update_MEM_propR : PropR (@update _ _ MEM).
 Proof.
@@ -1388,46 +829,7 @@ Qed.
 
 (******)
 
-(* TODO: Useful? *)
-Notation assume' P := (if decide P then ret tt else err).
-
-(* TODO: Move *)
-Proposition simplify_assume P {DP: Decidable P} {X} (mx: M X) :
-  assume P;; mx = assume' P;; mx.
-Proof.
-  destruct (decide P); smon_rewrite.
-Qed.
-
-Proposition assume_bind P {DP: Decidable P} {X} (f: P -> M X) :
-  let* H := assume P
-  in f H =
-    match decide P with
-    | left H => f H
-    | right _ => err
-    end.
-Proof.
-  destruct (decide P) as [H|H]; smon_rewrite.
-Qed.
-
-Corollary assume_bind' P {DP: Decidable P} {X} (mx: M X) :
-  assume P;; mx = if decide P then mx else err.
-Proof.
-  apply assume_bind.
-Qed.
-
-(******)
-
 Section assume_rel_section.
-
-  Proposition assume_eq
-    P {DP: Decidable P} {X} (f g: P -> M X)
-    (H : forall (p:P), f p = g p) :
-      let* p := assume P in f p =
-      let* p := assume P in g p.
-  Proof.
-    destruct (decide P) as [p|_]; smon_rewrite.
-    apply H.
-  Qed.
 
   Ltac assume_rel_tac P H :=
     destruct (decide P) as [p|_];
@@ -1511,16 +913,6 @@ Proof.
   typeclasses eauto.
 Qed.
 
-(* TODO: Probably not safe to define as an instance. *)
-Lemma disjoint_independent' u v (H: u # v) : Independent (MEM' u) (MEM' v).
-Proof.
-  unfold MEM'.
-  apply
-    composite_independent_r,
-    separate_independent. (* TODO: Rename and move. *)
-  exact H.
-Qed.
-
 (***********)
 
 Lemma wipe_swallow_reordering'
@@ -1565,90 +957,7 @@ Proof.
   apply assume_eq, wipe_swallow_reordering'.
 Qed.
 
-Arguments proj {_ _} _ _.
-Arguments update {_ _} _ _ _.
-
-(* TODO: Don't we have this already? Safe as global? *)
-#[refine]
-Instance sublensFactor
-  {A X Y} {LX: Lens A X} {LY: Lens A Y}
-  (HS: (LX|LY)) (a:A) : Lens Y X :=
-{
-  proj y := proj LX (update LY a y);
-  update y x := proj LY (update LX (update LY a y) x);
-}.
-Proof.
-  - intros y x. lens_rewrite.
-    specialize (HS a (update LY a y) (update LX a x)).
-    revert HS. cbn. lens_rewrite.
-    intros HS. rewrite <- HS. lens_rewrite.
-  - intros y.
-    specialize (HS a (update LY a y) (update LY a y)).
-    revert HS. cbn. lens_rewrite.
-  - intros y x x'.
-    specialize (HS
-      (update LY a y)
-      (update LX (update LY a y) x)
-      (update LX a x')).
-    cbn in HS. revert HS. lens_rewrite.
-    intros HS. rewrite HS. lens_rewrite.
-Defined.
-
-Lemma sublensFactor_spec
-  {A X Y} {LX: Lens A X} {LY: Lens A Y}
-  (HS: (LX|LY)) (a:A) : sublensFactor HS a ∘ LY ≅ LX.
-Proof.
-  intros b x. cbn. unfold compose.
-  remember (HS a b (update LX a x)) as HH eqn:HHe; clear HHe.
-  revert HH. cbn. lens_rewrite. intros HH.
-  rewrite HH. clear HH. lens_rewrite.
-  specialize (HS b b (update LX b x)).
-  revert HS. cbn. lens_rewrite. congruence.
-Qed.
-
-Arguments proj {_ _ _} _.
-Arguments update {_ _ _} _ _.
-
-(****)
-
-Proposition sub_put_get {A B} (LA: Lens State A) (LB: Lens A B) a :
-  put' LA a;;
-  get' (LB ∘ LA) =
-    put' LA a;;
-    ret (proj a).
-Proof.
-  rewrite put_spec, get_spec.
-  cbn. smon_rewrite'.
-Qed.
-
-Proposition mem_point_sub {a u} (Ha: a ∈ u) :
-  (MEM'' a | MEM' u).
-Proof.
-  unfold MEM', MEM''.
-  apply sublens_comp, pointLens_sublens.
-  exact Ha.
-Qed.
-
-(* TODO*)
-Existing Instance compositeLens_proper.
-
-Lemma mem_put_get'' {a u} (Ha: a ∈ u) f :
-  put' (MEM' u) f;;
-  get' (MEM'' a) =
-    put' (MEM' u) f;;
-    ret (f a Ha).
-Proof.
-  unfold MEM', MEM''.
-  set (PL := pointLens _).
-  set (RL := restrLens _).
-  assert (PL|RL) as H;
-  [ apply pointLens_sublens; exact Ha | ].
-  setoid_rewrite <- (sublensFactor_spec H (fun _ _ => None)).
-  setoid_rewrite <- compositeLens_associative.
-  setoid_rewrite sub_put_get. f_equal.
-  extensionality x. destruct x. f_equal.
-  cbn. decided Ha. reflexivity.
-Qed.
+(***)
 
 Proposition rel_extensional'
   {A} (LA: Lens State A)
@@ -1669,7 +978,7 @@ Proof.
       (fun a' => put' LA a';; mx') H).
 Qed.
 
-(*****)
+(***)
 
 Proposition wipe_load {u a} (Ha: a ∈ u) : wipe u;; load a = err.
 Proof.
@@ -1681,20 +990,6 @@ Proof.
   rewrite mem_put_get''.
   - smon_rewrite.
   - exact Ha.
-Qed.
-
-Proposition put_to_get
-    {A} (LA: Lens State A)
-    {X} (f g: A -> M X)
-    (H: forall a,
-      put' LA a;; f a =
-      put' LA a;; g a) :
-  let* a := get' LA in f a =
-  let* a := get' LA in g a.
-Proof.
-  smon_ext' LA a.
-  setoid_rewrite lens_put_get.
-  exact (H a).
 Qed.
 
 Proposition put_to_get'
@@ -1797,6 +1092,9 @@ Qed.
 
 (***********)
 
+(* TODO: Duplicate *)
+Ltac simplify_assume := setoid_rewrite simplify_assume.
+
 Proposition wipe_swallow_precondition u {n} (ops: vector Z n) :
   wipe u;;
   swallow ops = let* pc := get' PC in
@@ -1806,14 +1104,14 @@ Proposition wipe_swallow_precondition u {n} (ops: vector Z n) :
 Proof.
   induction ops using vec_rev_ind.
   {
-    simp_assume.
+    simplify_assume.
     smon_ext s.
     unfold Addr.
     rewrite get_spec.
     smon_rewrite.
     apply bind_extensional. intros [].
     rewrite decide_true.
-    - reflexivity.
+    - now rewrite ret_tt_bind.
     - now rewrite nAfter_empty.
   }
   simp swallow.

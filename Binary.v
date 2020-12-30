@@ -441,7 +441,7 @@ Proof. reflexivity. Qed.
 
 Hint Rewrite butSign_equation_1 : butSign.
 Hint Rewrite @butSign_equation_2 : butSign.
-Opaque butSign.
+Global Opaque butSign.
 
 Proposition bitsToZ_split {n} (u: Bits (S n)) :
   bitsToZ u = join (butSign u) (signOffset u).
@@ -551,8 +551,6 @@ Proof.
 Qed.
 
 
-
-
 (** ** Bytes *)
 
 Notation B8 := (Bits 8).
@@ -583,7 +581,7 @@ Proposition bitsToBytes_equation_2 {n} b0 b1 b2 b3 b4 b5 b6 b7 (u: Bits (n * 8))
 Proof. reflexivity. Qed.
 
 Hint Rewrite bitsToBytes_equation_1 @bitsToBytes_equation_2 : bitsToBytes.
-Opaque bitsToBytes.
+Global Opaque bitsToBytes.
 
 Definition bytesToBits {n} (u: Bytes n) : Bits (n * 8).
 Proof.
@@ -601,8 +599,14 @@ Proposition bytesToBits_equation_2 n b0 b1 b2 b3 b4 b5 b6 b7 (u: Bytes n) :
   b0 :: b1 :: b2 :: b3 :: b4 :: b5 :: b6 :: b7 :: bytesToBits u.
 Proof. reflexivity. Qed.
 
-Hint Rewrite bytesToBits_equation_1 @bytesToBits_equation_2 : bytesToBits.
-Opaque bytesToBits.
+Proposition bytesToBits_equation_3 (u: Bits 8) : bytesToBits [u] = u.
+Proof.
+  dependent elimination u as [b0 :: b1 :: b2 :: b3 :: b4 :: b5 :: b6 :: b7 :: []].
+  reflexivity.
+Qed.
+
+Hint Rewrite bytesToBits_equation_1 @bytesToBits_equation_2 @bytesToBits_equation_3 : bytesToBits.
+Global Opaque bytesToBits.
 
 Lemma bitsToBytes_bytesToBits {n} (u: Bytes n) : bitsToBytes (bytesToBits u) = u.
 Proof.
@@ -619,3 +623,93 @@ Proof.
   - dependent elimination u as [b0 :: b1 :: b2 :: b3 :: b4 :: b5 :: b6 :: b7 :: u].
     simp bitsToBytes bytesToBits. rewrite IHn. reflexivity.
 Qed.
+
+(***)
+
+Corollary toBits_cong' n z : cong n (Z.of_N (bitsToN (toBits n z))) z.
+Proof.
+  rewrite ofN_bitsToN, fromBits_toBits_mod.
+  apply cong_mod.
+  lia.
+Qed.
+
+Hint Opaque cong : rewrite.
+
+Instance cong_equivalence n : Equivalence (cong n).
+Proof.
+  typeclasses eauto.
+Qed.
+
+Ltac cong_tac :=
+  apply toBits_cong;
+  rewrite toBits_cong';
+  apply eq_cong;
+  lia.
+
+Instance cong_toBits_proper n : Proper (cong n ==> eq) (toBits n).
+Proof. intros z z' Hz. apply toBits_cong. exact Hz. Qed.
+
+Corollary fromBits_toBits' n (u: Bits n) : toBits n (Z.of_N (bitsToN u)) = u.
+Proof. rewrite ofN_bitsToN. apply toBits_fromBits. Qed.
+
+(***)
+
+Corollary bytesToBits_injective {n} {u v: Bytes n} (H: bytesToBits u = bytesToBits v) : u = v.
+Proof.
+  apply (f_equal bitsToBytes) in H.
+  setoid_rewrite bitsToBytes_bytesToBits in H.
+  exact H.
+Qed.
+
+Corollary bitsToN_injective {n} {u v: Bits n} (H: bitsToN u = bitsToN v) : u = v.
+Proof.
+  apply (f_equal Z.of_N) in H.
+  apply (f_equal (toBits n)) in H.
+  setoid_rewrite toBits_ofN_bitsToN in H.
+  exact H.
+Qed.
+
+
+(** ** Bytes to longs *)
+
+(** Cf. [bitsToBytes] *)
+Definition bytesToLongs {n} (u: Bytes (n * 8)) : vector B64 n.
+Proof.
+  induction n.
+  - exact [].
+  - simpl in u.
+    dependent elimination u as [b0 :: b1 :: b2 :: b3 :: b4 :: b5 :: b6 :: b7 :: u].
+    exact ((b0 ++ b1 ++ b2 ++ b3 ++ b4 ++ b5 ++ b6 ++ b7) :: IHn u).
+Defined.
+
+Proposition bytesToLongs_equation_1 : @bytesToLongs (0 * 8) [] = [].
+Proof. reflexivity. Qed.
+
+Proposition bytesToLongs_equation_2 {n} b0 b1 b2 b3 b4 b5 b6 b7 (u: Bytes (n * 8)) :
+  @bytesToLongs (S n) (b0 :: b1 :: b2 :: b3 :: b4 :: b5 :: b6 :: b7 :: u) =
+  (b0 ++ b1 ++ b2 ++ b3 ++ b4 ++ b5 ++ b6 ++ b7) :: bytesToLongs u.
+Proof. reflexivity. Qed.
+
+Hint Rewrite bytesToLongs_equation_1 @bytesToLongs_equation_2 : bytesToLongs.
+Global Opaque bytesToLongs.
+
+Proposition bytesToBits_equation_2' {n} b (u: Bytes n) :
+  @bytesToBits (S n) (b :: u) = b ++ bytesToBits u.
+Proof.
+  dependent elimination b as [b0 :: b1 :: b2 :: b3 :: b4 :: b5 :: b6 :: b7 :: []].
+  simp bytesToBits.
+  reflexivity.
+Qed.
+
+Proposition bytesToLongs_equation_2' {n} b0 b1 b2 b3 b4 b5 b6 b7 (u: Bytes (n * 8)) :
+  @bytesToLongs (S n) (b0 :: b1 :: b2 :: b3 :: b4 :: b5 :: b6 :: b7 :: u) =
+  (bytesToBits ([b0; b1; b2; b3; b4; b5; b6; b7] : Bytes 8)) :: bytesToLongs u.
+Proof.
+  (* TODO: Can this be done more elegantly? *)
+  simp bytesToLongs.
+  repeat rewrite bytesToBits_equation_2'.
+  repeat f_equal.
+  dependent elimination b7 as [c0 :: c1 :: c2 :: c3 :: c4 :: c5 :: c6 :: c7 :: []].
+  reflexivity.
+Qed.
+

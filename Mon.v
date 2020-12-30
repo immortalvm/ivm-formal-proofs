@@ -61,10 +61,15 @@ Notation "mx ;; my" := (bind mx (fun _ => my))
                           format "'[hv' mx ;;  '//' my ']'") : monad_scope.
 
 Notation "'assume' P" :=
+  (* TODO: Why doesn't this work for printing? *)
   (match (decide P%type) with
    | left p => ret p
    | right _ => err
    end) (at level 50) : monad_scope.
+
+(* TODO: Abbreviation.
+  Not sure how to define this as a scoped notation. *)
+Notation assume' P := (if decide P then ret tt else err).
 
 Open Scope monad_scope.
 
@@ -358,6 +363,16 @@ Section mixer_section.
 
 End mixer_section.
 
+Proposition sub_put_spec {S: Type} {M: Type -> Type} {SM: SMonad S M}
+    {A B} (LA: Lens S A) (LB: Lens A B) (b: B) :
+  put' (LB ∘ LA) b = let* a := get' LA in
+                     put' LA (update a b).
+Proof.
+  setoid_rewrite put_spec'.
+  setoid_rewrite get_spec.
+  smon_rewrite.
+Qed.
+
 Ltac smon_ext' La a := apply (smonad_ext' La); intros a.
 
 Ltac smon_rewrite1_lens :=
@@ -589,6 +604,16 @@ End lens_section.
 Section sublens_section.
 
   Context {S M} {SM: SMonad S M}.
+
+  Proposition sub_put_get {A B} (LA: Lens S A) (LB: Lens A B) a :
+    put' LA a;;
+    get' (LB ∘ LA) =
+      put' LA a;;
+      ret (proj a).
+  Proof.
+    rewrite put_spec, get_spec.
+    cbn. smon_rewrite'.
+  Qed.
 
   Global Instance lens_get_proper {A} :
     Proper (@lensEq S A ==> eq) get'.
@@ -833,3 +858,108 @@ Section independence_section3.
   generalized from lenses to mixers using function types. *)
 
 End independence_section3.
+
+
+(** ** Assumptions *)
+
+Section assumption_section.
+
+  Context {S M} {SM: SMonad S M}.
+
+  (* TODO: Move *)
+  Proposition simplify_assume P {DP: Decidable P} {X} (mx: M X) :
+    assume P;; mx = assume' P;; mx.
+  Proof.
+    destruct (decide P); smon_rewrite.
+  Qed.
+
+  Ltac simplify_assume := setoid_rewrite simplify_assume.
+
+  (***)
+
+  Proposition assume_bind P {DP: Decidable P} {X} (f: P -> M X) :
+    let* H := assume P
+    in f H =
+      match decide P with
+      | left H => f H
+      | right _ => err
+      end.
+  Proof.
+    destruct (decide P) as [H|H]; smon_rewrite.
+  Qed.
+
+  Corollary assume_bind' P {DP: Decidable P} {X} (mx: M X) :
+    assume P;; mx = if decide P then mx else err.
+  Proof.
+    apply assume_bind.
+  Qed.
+
+  Proposition assume_eq
+      P {DP: Decidable P} {X} (f g: P -> M X)
+      (H : forall (p:P), f p = g p) :
+    let* p := assume P in f p =
+    let* p := assume P in g p.
+  Proof.
+    destruct (decide P) as [p|_]; smon_rewrite.
+    apply H.
+  Qed.
+
+  Proposition postpone_assume P {DP: Decidable P} {X} (mx: M X) {Y} (f: X -> M Y) :
+    assume P;;
+    let* x := mx in
+    f x = let* x := mx in
+          assume P;;
+          f x.
+  Proof.
+    destruct (decide P) as [H|H]; smon_rewrite.
+  Qed.
+
+  Open Scope vector.
+
+  Lemma assume_cons {A} (EA: EqDec A) (a a': A) n (u u': vector A n) {X} (mx: M X) :
+    assume (a :: u = a' :: u');;
+    mx = assume (a = a');;
+        assume (u = u');;
+        mx.
+  Proof.
+    destruct (decide (a :: u = a' :: u')) as [He|He].
+    - rewrite ret_bind.
+      apply cons_inj in He.
+      destruct He as [Ha Hu].
+      decided Ha.
+      decided Hu.
+      now do 2 rewrite ret_bind.
+    - destruct (decide (a = a')) as [Ha|Ha];
+        destruct (decide (u = u')) as [Hu|Hu].
+      1: exfalso. congruence.
+      all: smon_rewrite.
+  Qed.
+
+  Close Scope vector.
+
+  Proposition assume_and P {DP: Decidable P} Q {DQ: Decidable Q} :
+    assume (P /\ Q) =
+      let* p := assume P in
+      let* q := assume Q in
+      ret (conj p q).
+  Proof.
+    destruct DP; destruct DQ; smon_rewrite.
+  Qed.
+
+  Proposition assume'_and P {DP: Decidable P} Q {DQ: Decidable Q} :
+    assume' (P /\ Q) = assume' P;; assume' Q.
+  Proof.
+    (* Follows from assume_and, but easier to prove directly. *)
+    destruct DP; destruct DQ; smon_rewrite.
+  Qed.
+
+  Proposition assume'_proper P {DP: Decidable P} Q {DQ: Decidable Q} :
+    P <-> Q -> assume' P = assume' Q.
+  Proof.
+    intros H.
+    rewrite decide_proper.
+    - reflexivity.
+    - exact H.
+  Qed.
+
+End assumption_section.

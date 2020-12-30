@@ -93,6 +93,11 @@ Proof.
   - intros _. reflexivity.
 Qed.
 
+Proposition negb_not (b: bool) : negb b <-> not b.
+Proof.
+  destruct b; now cbn.
+Qed.
+
 Proposition is_true_unique {b: bool} (H H': b) : H = H'.
 Proof.
   destruct b.
@@ -175,6 +180,41 @@ Section decidable_connectives.
   Global Instance impl_decidable : Decidable (P -> Q) := cases.
 
 End decidable_connectives.
+
+(** Making this an instance confuses the proof search. *)
+Proposition decidable_transfer {P} {D: Decidable P} {Q} (H: Q <-> P) : Decidable Q.
+Proof.
+  destruct D; [left|right]; tauto.
+Defined.
+
+(** Presumably, in coq-hott this could be an actual instance of Proper. *)
+Proposition decide_proper
+            {P Q}
+            {DP: Decidable P}
+            {DQ: Decidable Q}
+            (H: P <-> Q)
+            {X} (x x':X) :
+  (if decide P then x else x') = (if decide Q then x else x').
+Proof.
+  destruct (decide P) as [Hp|Hp];
+    destruct (decide Q) as [Hq|Hq];
+    reflexivity || tauto.
+Qed.
+
+Proposition decide_true
+          {P} {DP: Decidable P} (H: P) {X} (x x':X) :
+  (if decide P then x else x') = x.
+Proof.
+  decided H. reflexivity.
+Qed.
+
+Proposition eqdec_eqrefl {X} {HED: EqDec X} (x:X) : HED x x = left eq_refl.
+Proof.
+  destruct (HED x x) as [H|H].
+  - f_equal. apply uip.
+  - congruence.
+Qed.
+
 
 (** ** Options *)
 
@@ -375,17 +415,125 @@ Qed.
 an axiom or a different definition of [nat.le] than the one in the current
 standard library, cf. "Definitional Proof-Irrelevance without K" (2019). *)
 
+Close Scope N.
+
+(* TODO: Reformulate? *)
+Lemma bounded_all_neg P {DP: forall (x:nat), Decidable (P x)} n :
+  ~ (forall x, x < n -> P x) -> (exists x, x < n /\ ~ P x).
+Proof.
+  induction n; intro H.
+  - exfalso. apply H. intros x Hx. exfalso. lia.
+  - destruct (decide (P n)) as [Hd|Hd].
+    + assert (~ forall x : nat, x < n -> P x) as Hnot.
+      * intros Hno.
+        apply H.
+        intros x Hx.
+        by_lia (x < n \/ x = n) as H0.
+        destruct H0 as [H1|H2].
+        -- apply Hno. exact H1.
+        -- destruct H2. exact Hd.
+      * specialize (IHn Hnot).
+        destruct IHn as [x [Hx Hp]].
+        exists x. split.
+        -- lia.
+        -- exact Hp.
+    + exists n. split.
+      * lia.
+      * exact Hd.
+Qed.
+
+(* TODO: Are there better ways to do this? *)
+Definition bounded_evidence
+    P {DP: forall (x:nat), Decidable (P x)}
+    n (H: exists x, x < n /\ P x) :
+  { x: nat | x < n /\ P x }.
+Proof.
+  induction n.
+  - exfalso. destruct H as [x [H1 H2]]. lia.
+  - specialize (DP n). destruct DP as [H1|H2].
+    + refine (exist _ n _). split; [lia | exact H1].
+    + assert (exists (x: nat), x < n /\ P x) as He.
+      * destruct H as [x [Hsn Hx]].
+        exists x. split; [ | exact Hx ].
+        by_lia (x < n \/ x = n) as Hn.
+        destruct Hn as [Hn|Hn]; [ exact Hn | ].
+        destruct Hn. exfalso. exact (H2 Hx).
+      * specialize (IHn He).
+        destruct IHn as [x [IH1 IH2]].
+        refine (exist _ x _).
+        split; [lia | exact IH2].
+Defined.
+
+Section LastWitness_section.
+
+  Context
+    (P: nat -> Prop)
+    {DP: forall i, Decidable (P i)}.
+
+  Inductive LastWitness n :=
+  | SomeWitness
+    {i:nat} (Hi: i<n) (Hp: P i)
+    (Ho: forall (j: nat), i<j<n -> ~ P j)
+  | NoWitness
+    (Ho: forall i, i<n -> ~ P i).
+
+  Equations? findLast n : LastWitness n :=
+    findLast 0 := NoWitness 0 _;
+    findLast (S n) :=
+      match decide (P n) with
+      | left Hp => @SomeWitness _ n (Nat.lt_succ_diag_r n) Hp _
+      | right Hp' =>
+        match findLast n with
+        | SomeWitness _ Hi Hp Ho => @SomeWitness _ _ _ Hp _
+        | NoWitness _ _ => @NoWitness _ _
+        end
+      end.
+  Proof.
+    1,2: lia.
+    - by_lia (j < n \/ j = n) as Hjn. destruct Hjn as [Hjn|Hjn].
+      + apply Ho. lia.
+      + subst j. exact Hp'.
+    - by_lia (i < n \/ i = n) as Hin. destruct Hin as [Hin|Hin].
+      + apply n0. exact Hin.
+      + subst i. exact Hp'.
+  Qed.
+
+End LastWitness_section.
+
 
 (** ** Vectors and lists *)
 
 Close Scope list_scope.
+
 (** This opens [vector_scope]. *)
 Export VectorNotations.
 
+Notation vector := (Vector.t).
+
+Proposition vector_map_equation_1 {A B} (f: A -> B) : Vector.map f [] = [].
+Proof.
+  reflexivity.
+Qed.
+
+Proposition vector_map_equation_2 {A B} (f: A -> B) (x: A) {n} (u: vector A n) : Vector.map f (x :: u) = f x :: Vector.map f u.
+Proof.
+  reflexivity.
+Qed.
+
+Hint Rewrite @vector_map_equation_1 : map.
+Hint Rewrite @vector_map_equation_2 : map.
+
+Global Opaque Vector.map.
+
+Proposition rew_cons [X m n x] [u: vector X m] [HS: S m = S n] (H: m = n) :
+  rew HS in (x :: u) = x :: rew H in u.
+Proof.
+  destruct H. revert HS. apply EqDec.UIP_K. reflexivity.
+Qed.
+
+
 Export ListNotations.
 Open Scope list_scope. (* Partly shadows vector_scope. *)
-
-Notation vector := (Vector.t).
 
 Derive Signature NoConfusion NoConfusionHom for vector.
 
@@ -466,6 +614,32 @@ End irel_section.
 
 Coercion N.of_nat : nat >-> N.
 Coercion Z.of_N : N >-> Z.
+
+Proposition Nat2N_inj_pow (m n : nat) : (m ^ n)%nat = (m ^ n)%N :> N.
+Proof.
+  induction n; [ reflexivity | ].
+  rewrite
+    Nnat.Nat2N.inj_succ,
+    N.pow_succ_r',
+    Nat.pow_succ_r',
+    Nnat.Nat2N.inj_mul,
+    IHn.
+  reflexivity.
+Qed.
+
+Proposition inj_succ (n: nat) : S n = Z.succ n :> Z.
+Proof.
+  now rewrite Nnat.Nat2N.inj_succ, N2Z.inj_succ.
+Qed.
+
+Proposition Nat2N_inj_lt (m n: nat): (m < n)%N <-> (m < n)%nat.
+Proof.
+  setoid_rewrite N2Z.inj_lt.
+  setoid_rewrite nat_N_Z.
+  symmetry.
+  apply Nat2Z.inj_lt.
+Qed.
+
 
 (** Defines [∘] *)
 Open Scope program_scope.

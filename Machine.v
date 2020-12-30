@@ -1,5 +1,7 @@
 From iVM Require Export Operations Binary.
+From iVM Require Import DSet.
 Require iVM.OpCodes.
+Import DSetNotations.
 
 Unset Suggest Proof Using.
 
@@ -56,6 +58,11 @@ End concreteParameters.
 
 Module ConcreteCore := Core concreteParameters.
 Export ConcreteCore.
+
+(* Why is this needed? *)
+Global Opaque loadMany.
+Global Opaque load.
+Global Opaque popMany.
 
 (* TODO: Is there a more elegant way to achieve this? *)
 Definition cells_to_bytes {n} : Cells n -> Bytes n := id.
@@ -296,9 +303,8 @@ Section machine_section.
   Proof.
     unfold chain.
     rewrite <- bind_ret.
-    f_equal.
-    extensionality cont.
-    destruct cont; reflexivity.
+    apply bind_extensional.
+    intros [|]; reflexivity.
   Qed.
 
   Lemma chain_assoc (u v w : M bool) : chain (chain u v) w = chain u (chain v w).
@@ -328,6 +334,83 @@ Section machine_section.
     revert n. induction m; intros n; simpl Nat.add; simp nSteps.
     - rewrite true_chain. reflexivity.
     - rewrite chain_assoc, IHm. reflexivity.
+  Qed.
+
+
+  (** *** Extra properties *)
+
+  Equations popN (n: nat) : M (vector B64 n) :=
+    popN 0 := ret [];
+    popN (S n) := let* h := pop64 in
+                  let* r := popN n in
+                  ret (h :: r).
+
+  Proposition popN_spec n :
+    popN n =
+      let* u := popMany (n * 8) in
+      ret (bytesToLongs u).
+  Proof.
+    induction n.
+    - simp popMany. smon_rewrite.
+    - simp popN.
+      change (S n * 8)%nat with (S (S (S (S (S (S (S (S (n * 8)))))))))%nat.
+      setoid_rewrite IHn.
+      unfold pop64.
+      simp popMany.
+      smon_rewrite.
+      setoid_rewrite bytesToLongs_equation_2'.
+      reflexivity.
+  Qed.
+
+  (** Probably not safe to define as a global instance. *)
+  Instance disjoint_independent' u v (H: u # v) : Independent (MEM' u) (MEM' v).
+  Proof.
+    unfold MEM'.
+    apply
+      composite_independent_r,
+      separate_independent. (* TODO: Rename and move. *)
+    exact H.
+  Qed.
+
+  (* TODO: Safe as global instance? *)
+  Global Instance mem_point_sub {a u} (Ha: a ∈ u) :
+    (MEM'' a | MEM' u).
+  Proof.
+    unfold MEM', MEM''.
+    apply sublens_comp, pointLens_sublens.
+    exact Ha.
+  Qed.
+
+  Lemma mem_put_get'' {a u} (Ha: a ∈ u) f :
+    put' (MEM' u) f;;
+    get' (MEM'' a) =
+      put' (MEM' u) f;;
+      ret (f a Ha).
+  Proof.
+    unfold MEM', MEM''.
+    set (PL := pointLens _).
+    set (RL := restrLens _).
+    assert (PL|RL) as H;
+    [ apply pointLens_sublens; exact Ha | ].
+    setoid_rewrite <- (sublensFactor_spec H (fun _ _ => None)).
+    setoid_rewrite <- compositeLens_associative.
+    setoid_rewrite sub_put_get. f_equal.
+    extensionality x. destruct x. f_equal.
+    cbn. decided Ha. reflexivity.
+  Qed.
+
+  Proposition put_to_get
+      {A} (LA: Lens State A)
+      {X} (f g: A -> M X)
+      (H: forall a,
+        put' LA a;; f a =
+        put' LA a;; g a) :
+    let* a := get' LA in f a =
+    let* a := get' LA in g a.
+  Proof.
+    smon_ext' LA a.
+    setoid_rewrite lens_put_get.
+    exact (H a).
   Qed.
 
 End machine_section.
