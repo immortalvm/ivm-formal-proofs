@@ -84,6 +84,7 @@ Proof.
   crush. apply Hmx.
 Qed.
 
+(* TODO: Useful? *)
 Corollary wipeStack_nCert
   {ma mb: M bool} (Hab: ma ⊑ mb)
   {n} (H: nCert n mb) m : nCert n (wipeStack m;; ma).
@@ -91,6 +92,7 @@ Proof.
   exact (nCert_monotone _ (wipeStack_less' Hab m) H).
 Qed.
 
+(* TODO: Useful? *)
 Corollary wipeStack_nCertN
   {ma mb: M unit} (Hab: ma ⊑ mb)
   {n} (H: nCertN n mb) m : nCertN n (wipeStack m;; ma).
@@ -104,6 +106,7 @@ Qed.
 
 (***)
 
+(* TODO: Useful? *)
 Proposition rel_ret_tt
             mu Y (my my' : M Y)
             `(mu ⊑ ret tt)
