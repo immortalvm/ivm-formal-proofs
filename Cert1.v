@@ -181,3 +181,92 @@ Proof.
   - apply Hfg.
   - apply Hst_mem.
 Qed.
+
+(********)
+
+(* TODO: Move *)
+Proposition bitsToN_bound {n} (u: Bits n) : (bitsToN u < 2 ^ n)%N.
+Proof.
+  assert ((2^n)%N = 2^n :> Z) as H; [ now rewrite N2Z.inj_pow | ].
+  unfold bitsToN, fromBits.
+  apply N2Z.inj_lt.
+  rewrite N2Z.inj_pow.
+  destruct (join_zero u) as [H0 H64].
+  lia.
+Qed.
+
+(* TODO: Update definition in Init.v instead. *)
+Arguments Nat2N_inj_lt {_ _}.
+
+(* TODO: Move to after Nat2N_inj_lt *)
+Corollary N2Nat_inj_lt {m n: N} :
+  (N.to_nat m < N.to_nat n)%nat <-> (m < n)%N.
+Proof.
+  setoid_rewrite <- Nnat.N2Nat.id at 3 4.
+  setoid_rewrite Nat2N_inj_lt.
+  reflexivity.
+Qed.
+
+(***)
+
+(* Finitely enumerable, equivalent to Coq.Logic.FinFun.Finite. *)
+Class SFinite X : Type :=
+{
+  SFinite_n : N;
+  SFinite_f : forall i, (i < SFinite_n)%N -> X;
+  SFinite_p : forall x, exists i Hi, SFinite_f i Hi = x;
+}.
+
+#[refine]
+Instance bits_sfinite n : SFinite (Bits n) :=
+{
+  SFinite_n := 2 ^ n;
+  SFinite_f i _ := toBits n i;
+}.
+Proof.
+  intros x. exists x, (bitsToN_bound x).
+  apply fromBits_toBits'.
+Qed.
+
+(****)
+
+Instance sfinite_decidable_all
+    {X} {SF: SFinite X}
+    (P: X -> Prop) {DP: forall x, Decidable (P x)} :
+  Decidable (forall x, P x).
+Proof.
+  enough (
+    (forall x, P x) <->
+    (forall i (Hi: (i < SFinite_n)%N),
+      P (SFinite_f i Hi))) as H;
+  [ unshelve eapply (decidable_transfer H) | ].
+  split.
+  - intros H i Hi. apply H.
+  - intros H x.
+    destruct (SFinite_p x) as [i [Hi Hp]].
+    specialize (H i Hi).
+    rewrite Hp in H.
+    exact H.
+Qed.
+
+Definition isWiped (u: DSet Addr) (m: Memory) :=
+  forall a (Hau: a ∈ u), exists (Ha: available a), m a Ha = None.
+
+(* TODO: Move to Init.v. *)
+Instance exists_true_decidable
+    (b: bool) (P: Is_true b -> Prop) {DP: forall Hb: b, Decidable (P Hb)} :
+    Decidable (exists Hb, P Hb).
+Proof.
+  destruct b.
+  - specialize (DP I).
+    destruct (decide (P I)) as [H|H].
+    + left. exists I. exact H.
+    + right. intros [Hb Hp]. destruct Hb. exact (H Hp).
+  - right. intros [Hb _]. exact Hb.
+Qed.
+
+(* Redundant *)
+Instance isWiped_decidable u m : Decidable (isWiped u m).
+Proof.
+  typeclasses eauto.
+Defined.
