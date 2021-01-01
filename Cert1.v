@@ -64,86 +64,6 @@ Qed.
 
 (*********************)
 
-Definition wipeStack n :=
-  let* a := get' SP in
-  wipe (nBefore (n * 8) a).
-
-Proposition wipeStack_less n : wipeStack n ⊑ ret tt.
-Proof.
-  unfold wipeStack. rewrite get_spec. cbn.
-  rewrite bind_assoc. rewrite <- get_ret. crush.
-  rewrite ret_bind. apply wipe_less.
-Qed.
-
-Proposition wipeStack_less' {X} {RX: Rel X}
-  {mx mx': M X} (Hmx: mx ⊑ mx') n : wipeStack n;; mx ⊑ mx'.
-Proof.
-  rewrite <- ret_tt_bind.
-  apply bind_propr'.
-  apply wipeStack_less.
-  crush. apply Hmx.
-Qed.
-
-(* TODO: Useful? *)
-Corollary wipeStack_nCert
-  {ma mb: M bool} (Hab: ma ⊑ mb)
-  {n} (H: nCert n mb) m : nCert n (wipeStack m;; ma).
-Proof.
-  exact (nCert_monotone _ (wipeStack_less' Hab m) H).
-Qed.
-
-(* TODO: Useful? *)
-Corollary wipeStack_nCertN
-  {ma mb: M unit} (Hab: ma ⊑ mb)
-  {n} (H: nCertN n mb) m : nCertN n (wipeStack m;; ma).
-Proof.
-  unfold nCertN in *.
-  rewrite bind_assoc.
-  assert (ma;; ret true ⊑ mb;; ret true) as HH.
-  - crush. exact Hab.
-  - apply (wipeStack_nCert HH H).
-Qed.
-
-(***)
-
-(* TODO: Useful? *)
-Proposition rel_ret_tt
-            mu Y (my my' : M Y)
-            `(mu ⊑ ret tt)
-            `(my ⊑ my') : mu;; my ⊑ my'.
-Proof.
-  assert (my' = ret tt;; my') as HH.
-  - rewrite ret_bind. reflexivity.
-  - rewrite HH. crush; assumption.
-Qed.
-
-(* TODO: Postpone? *)
-Definition w_pop64 := let* v := pop64 in
-                      wipeStack 1;;
-                      ret v.
-
-Corollary wiped_pop64 : w_pop64 ⊑ pop64.
-Proof.
-  unfold w_pop64.
-  rewrite <- bind_ret.
-  crush.
-  apply rel_ret_tt.
-  - apply wipeStack_less.
-  - crush.
-Qed.
-
-(* TODO: Postpone *)
-Definition stdStart m n {o} (ops: vector Z o) : M (vector B64 n) :=
-  let* v := popN n in
-  wipeStack (m + n);;
-  swallow ops;;
-  ret v.
-
-(** By putting [swallow] after [wipeStack] we ensure that [stdStart] fails
-    if the operations overlap with (the relevant parts of) the stack. *)
-
-(***)
-
 Definition clearMem (mem: Memory) (a: Addr) (n: nat) : Memory :=
   update (Lens := restrLens (nAfter n a)) mem (fun _ _ _ => None).
 
@@ -270,3 +190,85 @@ Instance isWiped_decidable u m : Decidable (isWiped u m).
 Proof.
   typeclasses eauto.
 Defined.
+
+(****************)
+
+Definition wipeStack n :=
+  let* a := get' SP in
+  wipe (nBefore (n * 8) a).
+
+Proposition wipeStack_less n : wipeStack n ⊑ ret tt.
+Proof.
+  unfold wipeStack. rewrite get_spec. cbn.
+  rewrite bind_assoc. rewrite <- get_ret. crush.
+  rewrite ret_bind. apply wipe_less.
+Qed.
+
+Proposition wipeStack_less' {X} {RX: Rel X}
+  {mx mx': M X} (Hmx: mx ⊑ mx') n : wipeStack n;; mx ⊑ mx'.
+Proof.
+  rewrite <- ret_tt_bind.
+  apply bind_propr'.
+  apply wipeStack_less.
+  crush. apply Hmx.
+Qed.
+
+(* TODO: Useful? *)
+Corollary wipeStack_nCert
+  {ma mb: M bool} (Hab: ma ⊑ mb)
+  {n} (H: nCert n mb) m : nCert n (wipeStack m;; ma).
+Proof.
+  exact (nCert_monotone _ (wipeStack_less' Hab m) H).
+Qed.
+
+(* TODO: Useful? *)
+Corollary wipeStack_nCertN
+  {ma mb: M unit} (Hab: ma ⊑ mb)
+  {n} (H: nCertN n mb) m : nCertN n (wipeStack m;; ma).
+Proof.
+  unfold nCertN in *.
+  rewrite bind_assoc.
+  assert (ma;; ret true ⊑ mb;; ret true) as HH.
+  - crush. exact Hab.
+  - apply (wipeStack_nCert HH H).
+Qed.
+
+(***)
+
+(* TODO: Useful? *)
+Proposition rel_ret_tt
+            mu Y (my my' : M Y)
+            `(mu ⊑ ret tt)
+            `(my ⊑ my') : mu;; my ⊑ my'.
+Proof.
+  assert (my' = ret tt;; my') as HH.
+  - rewrite ret_bind. reflexivity.
+  - rewrite HH. crush; assumption.
+Qed.
+
+(* TODO: Postpone? *)
+Definition w_pop64 := let* v := pop64 in
+                      wipeStack 1;;
+                      ret v.
+
+Corollary wiped_pop64 : w_pop64 ⊑ pop64.
+Proof.
+  unfold w_pop64.
+  rewrite <- bind_ret.
+  crush.
+  apply rel_ret_tt.
+  - apply wipeStack_less.
+  - crush.
+Qed.
+
+(* TODO: Postpone *)
+Definition stdStart m n {o} (ops: vector Z o) : M (vector B64 n) :=
+  let* v := popN n in
+  wipeStack (m + n);;
+  swallow ops;;
+  ret v.
+
+(** By putting [swallow] after [wipeStack] we ensure that [stdStart] fails
+    if the operations overlap with (the relevant parts of) the stack. *)
+
+
