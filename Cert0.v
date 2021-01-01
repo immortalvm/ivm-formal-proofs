@@ -880,6 +880,7 @@ Qed.
 Definition wipe (u: DSet Addr) : M unit :=
   put' (MEM' u) (fun _ _ _ => None).
 
+(* TODO: Remove *)
 Goal forall u, Confined (MEM' u) (wipe u).
   typeclasses eauto.
 Qed.
@@ -1008,6 +1009,7 @@ Qed.
 
 (****)
 
+(* TODO: Remove *)
 Proposition rel_assume
     {X} (mx: M X) {RX: Rel X} {Hmx: PropR mx}
     (P: X -> Prop) {HP: forall x, Decidable (P x)}

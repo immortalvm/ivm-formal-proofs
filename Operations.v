@@ -396,6 +396,7 @@ Module Core (MP: MachineParameters).
     typeclasses eauto.
   Qed.
 
+  (* TODO: Make global opaque *)
   Opaque load.
 
 
@@ -432,6 +433,7 @@ Module Core (MP: MachineParameters).
     typeclasses eauto.
   Qed.
 
+  (* TODO: Make global opaque *)
   Opaque store.
 
   (** *** Reordering load and store operations *)
