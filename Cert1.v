@@ -191,75 +191,137 @@ Proof.
   typeclasses eauto.
 Defined.
 
+(******************************)
+
+Proposition simplify_put_1 {X} {RX: Rel X} {HT: Transitive RX}
+    (mx mx': M X) {Hmx': PropR mx'}
+    (s t: State) (Hst: s ⊑ t)
+    (H: put s;; mx ⊑ put s;; mx') :
+  put s;; mx ⊑ put t;; mx'.
+Proof.
+  transitivity (put s;; mx').
+  - exact H.
+  - now crush.
+Qed.
+
+Proposition simplify_put_2 {X} {RX: Rel X} {HT: Transitive RX}
+    (mx mx': M X) {Hmx: PropR mx}
+    (s t: State) (Hst: s ⊑ t)
+    (H: put t;; mx ⊑ put t;; mx') :
+  put s;; mx ⊑ put t;; mx'.
+Proof.
+  transitivity (put t;; mx).
+  - now crush.
+  - exact H.
+Qed.
+
+(** Cf. smonad_ext and rel_extensional'.
+In general, one of the variations below is more convenient. *)
+
+Proposition rel_extensional
+    {X} (mx mx': M X) {RX: Rel X}
+    (H: forall (s t: State) (Hst: s ⊑ t),
+      put s;; mx ⊑ put t;; mx') :
+  mx ⊑ mx'.
+Proof.
+  assert (
+    let* s := get in
+    put s;;
+    mx ⊑
+      let* t := get in
+      put t;;
+      mx') as HH.
+  - apply bind_propr'.
+    + crush.
+    + exact H.
+  - revert HH.
+    now smon_rewrite.
+Qed.
+
+Corollary rel_extensional_1
+    {X} {RX: Rel X} {HT: Transitive RX}
+    (mx mx': M X) (Hmx: PropR mx)
+    (H: forall s, put s;; mx ⊑ put s;; mx') :
+  mx ⊑ mx'.
+Proof.
+  apply rel_extensional. intros.
+  now apply simplify_put_2.
+Qed.
+
+Ltac rel_extensional_1 :=
+  match goal with |- ?mx ⊑ ?mx' => apply (rel_extensional_1 mx mx') end.
+
+Corollary rel_extensional_2
+    {X} {RX: Rel X} {HT: Transitive RX}
+    (mx mx': M X) (Hmx: PropR mx')
+    (H: forall s, put s;; mx ⊑ put s;; mx') :
+  mx ⊑ mx'.
+Proof.
+  apply rel_extensional. intros.
+  now apply simplify_put_1.
+Qed.
+
+Ltac rel_extensional_2 :=
+  match goal with |- ?mx ⊑ ?mx' => apply (rel_extensional_2 mx mx') end.
+
+(***)
+
+(* Lens argument no longer implicit. *)
+Arguments proj {_ _} _.
+Arguments update {_ _} _.
+
+(* TODO: Replace postpone_assume in Mon.v. *)
+Proposition postpone_assume' P {DP: Decidable P} {X} (mx: M X) {Y} (f: X -> M Y) :
+  assume' P;;
+  let* x := mx in
+  f x = let* x := mx in
+        assume' P;;
+        f x.
+Proof.
+  destruct (decide P) as [H|H]; smon_rewrite.
+Qed.
+
+Proposition assume_below_tt P {DP: Decidable P} :
+  assume' P ⊑ ret tt.
+Proof.
+  crush.
+Qed.
+
 (****************)
 
-Definition wipeStack n :=
-  let* a := get' SP in
-  wipe (nBefore (n * 8) a).
+Definition assumeState
+    (P: State -> Prop)
+    {DP: forall s, Decidable (P s)} :=
+  let* s := get in
+  assume' (P s).
 
-Proposition wipeStack_less n : wipeStack n ⊑ ret tt.
+Proposition assumeState_sub_tt
+    (P: State -> Prop)
+    {DP: forall s, Decidable (P s)} :
+  assumeState P ⊑ ret tt.
 Proof.
-  unfold wipeStack. rewrite get_spec. cbn.
-  rewrite bind_assoc. rewrite <- get_ret. crush.
-  rewrite ret_bind. apply wipe_less.
-Qed.
-
-Proposition wipeStack_less' {X} {RX: Rel X}
-  {mx mx': M X} (Hmx: mx ⊑ mx') n : wipeStack n;; mx ⊑ mx'.
-Proof.
-  rewrite <- ret_tt_bind.
-  apply bind_propr'.
-  apply wipeStack_less.
-  crush. apply Hmx.
-Qed.
-
-(* TODO: Useful? *)
-Corollary wipeStack_nCert
-  {ma mb: M bool} (Hab: ma ⊑ mb)
-  {n} (H: nCert n mb) m : nCert n (wipeStack m;; ma).
-Proof.
-  exact (nCert_monotone _ (wipeStack_less' Hab m) H).
-Qed.
-
-(* TODO: Useful? *)
-Corollary wipeStack_nCertN
-  {ma mb: M unit} (Hab: ma ⊑ mb)
-  {n} (H: nCertN n mb) m : nCertN n (wipeStack m;; ma).
-Proof.
-  unfold nCertN in *.
-  rewrite bind_assoc.
-  assert (ma;; ret true ⊑ mb;; ret true) as HH.
-  - crush. exact Hab.
-  - apply (wipeStack_nCert HH H).
+  unfold assumeState.
+  apply rel_extensional_2; [ crush | ]. intros s.
+  rewrite put_get'.
+  destruct (decide (P s)); crush.
 Qed.
 
 (***)
 
-(* TODO: Useful? *)
-Proposition rel_ret_tt
-            mu Y (my my' : M Y)
-            `(mu ⊑ ret tt)
-            `(my ⊑ my') : mu;; my ⊑ my'.
-Proof.
-  assert (my' = ret tt;; my') as HH.
-  - rewrite ret_bind. reflexivity.
-  - rewrite HH. crush; assumption.
-Qed.
+(* TODO: Replace definition of wipe instead. *)
+Definition wipe' u :=
+  assume' (u ⊆ available);;
+  wipe u.
 
-(* TODO: Postpone? *)
-Definition w_pop64 := let* v := pop64 in
-                      wipeStack 1;;
-                      ret v.
+Definition wiped u :=
+  let* mem := get' MEM in
+  assume' (isWiped u mem).
 
-Corollary wiped_pop64 : w_pop64 ⊑ pop64.
-Proof.
-  unfold w_pop64.
-  rewrite <- bind_ret.
-  crush.
-  apply rel_ret_tt.
-  - apply wipeStack_less.
-  - crush.
-Qed.
+Definition wipeStack n :=
+  let* a := get' SP in
+  wipe' (nBefore (n * 8) a).
+
+(***)
 
 (* TODO: Postpone *)
 Definition stdStart m n {o} (ops: vector Z o) : M (vector B64 n) :=
@@ -271,4 +333,209 @@ Definition stdStart m n {o} (ops: vector Z o) : M (vector B64 n) :=
 (** By putting [swallow] after [wipeStack] we ensure that [stdStart] fails
     if the operations overlap with (the relevant parts of) the stack. *)
 
+(*********)
 
+Definition longsToBytes {n} (u: vector B64 n) : Bytes (n * 8).
+Proof.
+  induction n.
+  - exact [].
+  - dependent elimination u as [ @Vector.cons x n u ].
+    exact (bitsToBytes (x : Bits (8 * 8)) ++ IHn u).
+Defined.
+
+Proposition longsToBytes_equation_1 : longsToBytes [] = [].
+Proof. reflexivity. Qed.
+
+Proposition longsToBytes_equation_2 n x (u: vector B64 n) :
+  @longsToBytes (S n) (x :: u) = bitsToBytes (x : Bits (8 * 8)) ++ longsToBytes u.
+Proof. reflexivity. Qed.
+
+Hint Rewrite longsToBytes_equation_1 @longsToBytes_equation_2 : longsToBytes.
+Global Opaque longsToBytes.
+
+Proposition longsToBytes_bytesToLongs n (u: Bytes (n * 8)) :
+  longsToBytes (bytesToLongs u) = u.
+Proof. (* TODO: Simplify proof *)
+  induction n.
+  - now dependent elimination u.
+  - dependent elimination u as [b0 :: b1 :: b2 :: b3 :: b4 :: b5 :: b6 :: b7 :: u].
+    simp bytesToLongs.
+    simp longsToBytes.
+    rewrite IHn. clear IHn.
+    dependent elimination b0 as
+      [b00 :: b01 :: b02 :: b03 :: b04 :: b05 :: b06 :: b07 :: [] ].
+    cbn. simp bitsToBytes.
+    dependent elimination b1 as
+      [b10 :: b11 :: b12 :: b13 :: b14 :: b15 :: b16 :: b17 :: [] ].
+    cbn. simp bitsToBytes.
+    dependent elimination b2 as
+      [b20 :: b21 :: b22 :: b23 :: b24 :: b25 :: b26 :: b27 :: [] ].
+    cbn. simp bitsToBytes.
+    dependent elimination b3 as
+      [b30 :: b31 :: b32 :: b33 :: b34 :: b35 :: b36 :: b37 :: [] ].
+    cbn. simp bitsToBytes.
+    dependent elimination b4 as
+      [b40 :: b41 :: b42 :: b43 :: b44 :: b45 :: b46 :: b47 :: [] ].
+    cbn. simp bitsToBytes.
+    dependent elimination b5 as
+      [b50 :: b51 :: b52 :: b53 :: b54 :: b55 :: b56 :: b57 :: [] ].
+    cbn. simp bitsToBytes.
+    dependent elimination b6 as
+      [b60 :: b61 :: b62 :: b63 :: b64 :: b65 :: b66 :: b67 :: [] ].
+    cbn. simp bitsToBytes.
+    dependent elimination b7 as
+      [b70 :: b71 :: b72 :: b73 :: b74 :: b75 :: b76 :: b77 :: [] ].
+    cbn. simp bitsToBytes.
+    reflexivity.
+Qed.
+
+(***********)
+
+Transparent pushMany.
+
+(* TODO: Move to Operations.v. *)
+Proposition pushMany_empty : pushMany [] = ret tt.
+Proof.
+  unfold pushMany.
+  reflexivity.
+Qed.
+
+Proposition pushMany_one x : pushMany [x] = push x.
+Proof.
+  cbn. smon_rewrite.
+Qed.
+
+Opaque pushMany.
+
+Proposition postpone_assume'' P {DP: Decidable P} (mx: M unit) :
+  assume' P;; mx = mx;; assume' P.
+Proof.
+  destruct (decide P) as [H|H]; smon_rewrite.
+Qed.
+
+Proposition pop_getSP {X} (f: B8 -> B64 -> M X):
+  let* x := pop in
+  let* sp := get' SP in
+  f x sp =
+    let* sp := get' SP in
+    let* x := pop in
+    f x (offset 1 sp).
+Proof.
+  rewrite pop_spec.
+  apply (smonad_ext' SP). intros sp.
+  smon_rewrite.
+  setoid_rewrite <- confined_load.
+  - rewrite lens_put_get.
+    reflexivity.
+  - apply neutral_get.
+    typeclasses eauto.
+Qed.
+
+Definition defined a :=
+  let* Ha := assume (available a) in
+  let* mem := get' MEM in
+  assume' (mem a Ha).
+
+Proposition defined_not_available a (Ha: ~ available a) :
+  defined a = err.
+Proof.
+  unfold defined.
+  destruct (decide (available a)) as [H|H].
+  - now contradict Ha.
+  - smon_rewrite.
+Qed.
+
+Definition defined_spec := unfolded_eq (defined).
+
+Global Opaque defined.
+
+Proposition load_defined a :
+  load a = defined a;; load a.
+Proof.
+  rewrite load_spec, defined_spec, extr_spec.
+  change (Machine.available' a) with (available a).
+  destruct (decide (available a)) as [Ha|Ha]; [ | smon_rewrite ].
+  apply (smonad_ext' MEM). intros mem.
+  smon_rewrite.
+  setoid_rewrite <- confined_put.
+  - setoid_rewrite lens_put_get.
+    destruct (mem a Ha) as [x|].
+    + cbn. smon_rewrite.
+    + smon_rewrite.
+  - typeclasses eauto.
+Qed.
+
+Proposition load_store a :
+  let* x := load a in store a x = defined a.
+Proof.
+  apply (smonad_ext' MEM). intros mem.
+  rewrite load_defined, load_spec, defined_spec, extr_spec.
+  setoid_rewrite store_spec.
+  change (Machine.available' a) with (available a).
+  destruct (decide (available a)) as [H|H].
+  - smon_rewrite.
+    rewrite postpone_assume'.
+    rewrite lens_put_get.
+    destruct (mem a H) as [x|] eqn:He.
+    + cbn. smon_rewrite. f_equal.
+      extensionality b.
+      extensionality Hb.
+      destruct (decide (a = b)) as [HH|HH].
+      * destruct HH. rewrite <- He. f_equal. apply is_true_unique.
+      * reflexivity.
+    + cbn. smon_rewrite.
+  - smon_rewrite.
+Qed.
+
+Proposition pop_push :
+  let* x := pop in
+  push x =
+    let* sp := get' SP in
+    defined sp.
+Proof.
+  rewrite pop_spec, push_spec.
+  repeat setoid_rewrite bind_assoc.
+  apply (smonad_ext' SP). intros sp.
+  setoid_rewrite lens_put_get.
+  setoid_rewrite lens_put_put.
+  setoid_rewrite confined_load.
+  -
+    setoid_rewrite lens_put_get.
+    setoid_rewrite lens_put_put.
+    setoid_rewrite <- confined_load.
+    +
+      assert (toB64 (-1 + toB64 (1 + sp)) = sp) as Hsp.
+      *
+        transitivity (offset (-1) (offset 1 sp)).
+        -- reflexivity.
+        -- rewrite <- Z_action_add. cbn. apply Z_action_zero.
+      *
+        rewrite Hsp.
+        rewrite load_store.
+        reflexivity.
+    + typeclasses eauto.
+  - typeclasses eauto.
+Qed.
+
+(***)
+
+Definition pushN {n} (u: vector B64 n) := pushMany (longsToBytes u).
+
+Definition pushN_spec := unfolded_eq (@pushN).
+
+Global Opaque pushN.
+
+Definition sDefined u :=
+  let* mem := get' MEM in
+  assume' (forall a (Hu: a ∈ u), exists (Ha: available a), mem a Ha).
+
+Proposition popMany_pushMany n :
+  let* u := popMany n in
+  pushMany u =
+    let* sp := get' SP in
+    sDefined (nAfter n sp).
+Proof.
+
+(* Continue from here *)
+
+Admitted.
