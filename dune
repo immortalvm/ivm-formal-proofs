@@ -1,0 +1,6 @@
+(coq.theory
+  (name iVM)
+  (modules (:standard ))) ;; \ Operations)))
+;; These stanzas do not appear to have any effect:
+(include_subdirs no)
+(dirs :standard \ Extras)

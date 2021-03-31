@@ -1,4 +1,5 @@
 -Q . iVM
+-R _build/default/ iVM
 Init.v
 DSet.v
 Mixer.v
