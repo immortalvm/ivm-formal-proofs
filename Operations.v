@@ -922,13 +922,20 @@ Module Core (MP: MachineParameters).
   Proof.
     setoid_rewrite <- Ha.
     - reflexivity.
-    - Hint Mode Neutral - - - - - - : typeclass_instances.
-    Hint Mode Confined - - - - - - : typeclass_instances.
-    Existing Instance lensmonad.
-    Hint Mode Lens - - : typeclass_instances.
-    Set Typeclasses Depth 1000.
-    (* Set Typeclasses Debug. *)
+    -
+    (* Hint Mode Independent + + - : typeclass_instances. *)
+    Hint Mode Independent' + - + : typeclass_instances.
+
+
+    Set Typeclasses Depth 10.
+    Set Typeclasses Debug.
+    Set Typeclasses Debug Verbosity 2.
+
     typeclasses eauto.
+
+    independent_forward
+    composite_independent_l
+
   Qed.
 
   Lemma pushMany_alt u (H: forall a, addressable (length u) a) :
