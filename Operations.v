@@ -574,7 +574,8 @@ Module Core (MP: MachineParameters).
     Confined (MEM' (nAfter n a) * PC)
              (put' PC a;; next n).
   Proof.
-    rewrite next_spec. smon_rewrite.
+    rewrite next_spec.
+    smon_rewrite.
     typeclasses eauto.
   Qed.
 
@@ -921,7 +922,13 @@ Module Core (MP: MachineParameters).
   Proof.
     setoid_rewrite <- Ha.
     - reflexivity.
-    - typeclasses eauto.
+    - Hint Mode Neutral - - - - - - : typeclass_instances.
+    Hint Mode Confined - - - - - - : typeclass_instances.
+    Existing Instance lensmonad.
+    Hint Mode Lens - - : typeclass_instances.
+    Set Typeclasses Depth 1000.
+    (* Set Typeclasses Debug. *)
+    typeclasses eauto.
   Qed.
 
   Lemma pushMany_alt u (H: forall a, addressable (length u) a) :

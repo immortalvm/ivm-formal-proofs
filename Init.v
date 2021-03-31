@@ -12,15 +12,7 @@ Require Export Coq.Program.Tactics.
 
 Export EqNotations.
 
-(** This clearly does not work properly at the moment. *)
 Unset Suggest Proof Using.
-
-
-(** ** Basics *)
-
-(** The standard library confuses currying and uncurrying. *)
-Notation curry := prod_uncurry.
-Notation uncurry := prod_curry.
 
 
 (** ** Tactics *)
@@ -122,6 +114,8 @@ Class Decidable (P: Prop) : Type :=
   decide : { P } + { not P }.
 
 Arguments decide P {_}.
+#[global]
+Hint Mode Decidable ! : typeclass_instances.
 
 Instance True_decidable : Decidable True := left I.
 Instance False_decidable : Decidable False := right (@id False).

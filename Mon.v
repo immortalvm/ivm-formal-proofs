@@ -34,6 +34,9 @@ Class SMonad (S: Type) (M: Type -> Type): Type :=
                                  get >>= (fun s => f s s);
 }.
 
+#[global]
+Hint Mode SMonad - - : typeclass_instances.
+
 Notation "mx >>= f" := (bind mx f) : monad_scope.
 
 (** [bind_extensional] is derivable if we assume functional
@@ -245,7 +248,7 @@ Section lensmonad_section.
   (** *** Definition *)
 
   #[refine]
-  Global Instance lensmonad: SMonad A M | 10 :=
+  Instance lensmonad: SMonad A M | 10 :=
   {
     ret := @ret S M SM;
     bind := @bind S M SM;
@@ -363,15 +366,19 @@ Section mixer_section.
 
 End mixer_section.
 
-Proposition sub_put_spec {S: Type} {M: Type -> Type} {SM: SMonad S M}
-    {A B} (LA: Lens S A) (LB: Lens A B) (b: B) :
-  put' (LB ∘ LA) b = let* a := get' LA in
-                     put' LA (update a b).
-Proof.
-  setoid_rewrite put_spec'.
-  setoid_rewrite get_spec.
-  smon_rewrite.
-Qed.
+Section tmp_mode_section.
+
+  Proposition sub_put_spec {S: Type} {M: Type -> Type} {SM: SMonad S M}
+      {A B} (LA: Lens S A) (LB: Lens A B) (b: B) :
+    put' (LB ∘ LA) b = let* a := get' LA in
+                      put' LA (update a b).
+  Proof.
+    setoid_rewrite put_spec'.
+    setoid_rewrite get_spec.
+    smon_rewrite.
+  Qed.
+
+End tmp_mode_section.
 
 Ltac smon_ext' La a := apply (smonad_ext' La); intros a.
 
@@ -382,9 +389,9 @@ Ltac smon_rewrite1_lens :=
   || setoid_rewrite lens_get_ret
   || setoid_rewrite lens_get_get.
 
-Ltac2 Set smon_rewrite1 := fun _ =>
-  ltac1:(smon_rewrite1_basics);
-  ltac1:(repeat smon_rewrite1_lens).
+Ltac2 Set smon_rewrite1 :=
+  fun _ => ltac1:(smon_rewrite1_basics);
+           ltac1:(repeat smon_rewrite1_lens).
 
 
 Set Typeclasses Unique Instances. (* ! *)
@@ -419,6 +426,11 @@ Section defs_section.
 
 End defs_section.
 
+#[global]
+Hint Mode Neutral ! ! ! ! - ! : typeclass_instances.
+
+#[global]
+Hint Mode Confined ! ! ! ! - ! : typeclass_instances.
 
 Section neutral_section.
 
@@ -952,6 +964,8 @@ Section assumption_section.
     (* Follows from assume_and, but easier to prove directly. *)
     destruct DP; destruct DQ; smon_rewrite.
   Qed.
+
+  Hint Mode Decidable - : typeclass_instances.
 
   Proposition assume'_proper P {DP: Decidable P} Q {DQ: Decidable Q} :
     P <-> Q -> assume' P = assume' Q.

@@ -9,6 +9,9 @@ Unset Suggest Proof Using.
 
 Class Rel (X: Type) := rel : relation X.
 
+#[global]
+Hint Mode Rel ! : typeclass_instances.
+
 Infix "⊑" := rel (at level 70).
 Arguments rel : clear implicits.
 Arguments rel {_} _.
@@ -139,6 +142,8 @@ Section lens_section.
     unfold lens_relation. intros s s' H.
     symmetry; assumption.
   Qed.
+
+  Hint Mode Lens - - : typeclass_instances.
 
   Global Instance lens_relation_transitive {HtX: Transitive RX} : Transitive lens_relation.
   Proof.

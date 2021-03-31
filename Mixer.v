@@ -21,6 +21,8 @@ Class Mixer A :=
   mixer_left x y z : mixer (mixer x y) z = mixer x z;
   mixer_right x y z : mixer x (mixer y z) = mixer x z;
 }.
+#[global]
+Hint Mode Mixer ! : typeclass_instances.
 
 Bind Scope lens_scope with Mixer.
 
@@ -96,6 +98,9 @@ Class Submixer {A} (f g: Mixer A) : Prop :=
   submixer x y z : f (g x y) z = g x (f y z).
 
 Unset Typeclasses Unique Instances.
+
+#[global]
+Hint Mode Submixer ! ! ! : typeclass_instances.
 
 (** Adding [@submixer] as a rewrite hint may cause loops. *)
 
@@ -214,6 +219,9 @@ Section independence_section.
   Qed.
 
 End independence_section.
+
+#[global] Hint Mode Independent ! ! ! : typeclass_instances.
+#[global] Hint Mode Independent' ! ! ! : typeclass_instances.
 
 Arguments independent_right {_ _ _ _}.
 

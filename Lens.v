@@ -18,6 +18,9 @@ Class Lens (A: Type) (X: Type) :=
   update_update (a: A) (x: X) (x': X) : update (update a x) x' = update a x';
 }.
 
+#[global]
+Hint Mode Lens ! - : typeclass_instances.
+
 Hint Rewrite @proj_update : lens.
 Hint Rewrite @update_proj : lens.
 Hint Rewrite @update_update : lens.
@@ -152,6 +155,8 @@ Section independence_section.
 
   Context {Lx: Lens A X}
           {Ly: Lens A Y}.
+
+  Hint Mode Lens - ! : typeclass_instances.
 
   Instance independent_update
            (H: forall a (x: X) (y: Y), update (update a x) y = update (update a y) x) :
@@ -334,6 +339,7 @@ Hint Extern 2 (?Ly ∘ ?Lx | ?Lx) =>
   apply sublens_comp' : typeclass_instances.
 *)
 
+#[global]
 Hint Extern 2 (@Submixer _ (@lens2mixer _ _ (@compositeLens _ _ _ ?Ly ?Lx))
                          (@lens2mixer _ _ ?Lx)) =>
     apply sublens_comp' : typeclass_instances.
@@ -427,7 +433,9 @@ End projection_section.
 
 Infix "*" := prodLens : lens_scope.
 
+#[global]
 Hint Extern 5 (lens2mixer _ | lens2mixer _) => setoid_rewrite prodLens_prodMixer : typeclass_instances.
+#[global]
 Hint Extern 5 (Independent' (lens2mixer _) (lens2mixer _)) => setoid_rewrite prodLens_prodMixer : typeclass_instances.
 
 Goal forall {A X Y: Type} (Lx: Lens A X) (Ly: Lens A Y) {Hi: Independent' Lx Ly},
