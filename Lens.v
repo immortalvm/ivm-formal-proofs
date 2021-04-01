@@ -18,8 +18,9 @@ Class Lens (A: Type) (X: Type) :=
   update_update (a: A) (x: X) (x': X) : update (update a x) x' = update a x';
 }.
 
-#[global]
-Hint Mode Lens ! - : typeclass_instances.
+(* Union *)
+#[global] Hint Mode Lens ! - : typeclass_instances.
+#[global] Hint Mode Lens - ! : typeclass_instances.
 
 Hint Rewrite @proj_update : lens.
 Hint Rewrite @update_proj : lens.
@@ -47,7 +48,7 @@ Section equality_section.
     intros a x. reflexivity.
   Qed.
 
-  Global Instance lensEq_equivalence : Equivalence lensEq.
+  #[global] Instance lensEq_equivalence : Equivalence lensEq.
   Proof.
     split.
     - intro L1. exact lens_refl.
@@ -58,13 +59,13 @@ Section equality_section.
       + apply H23.
   Qed.
 
-  Global Instance update_proper :
+  #[global] Instance update_proper :
     Proper (lensEq ==> eq ==> eq ==> eq) (@update A X).
   Proof.
     repeat intro. subst. intuition.
   Qed.
 
-  Global Instance proj_proper :
+  #[global] Instance proj_proper :
     Proper (lensEq ==> eq ==> eq) (@proj A X).
   Proof.
     intros L L' Hl.
@@ -137,7 +138,6 @@ Section independence_section.
 
   Context {A X Y : Type}.
 
-
   (** The following is a trivial consequence of [Mixer.independent_proper] and
       [lens2mixer_proper]. I am not sure what it would take for
       [typeclasses eauto] to solve such goals automatically.*)
@@ -145,8 +145,17 @@ Section independence_section.
   Existing Instance Mixer.independent_proper.
 
   (* Shadows [Mixer.independent_proper] *)
-  Instance independent_proper :
+  #[global] Instance independent_proper :
     Proper (@lensEq A X ==> @lensEq A Y ==> iff) Independent.
+  Proof.
+    intros ? ? Hx ? ? Hy.
+    rewrite Hx, Hy.
+    reflexivity.
+  Qed.
+
+  (* Shadows [Mixer.independent_proper'] *)
+  #[global] Instance independent_proper' :
+    Proper (@lensEq A X ==> @lensEq A Y ==> iff) Independent'.
   Proof.
     intros ? ? Hx ? ? Hy.
     rewrite Hx, Hy.
@@ -155,8 +164,6 @@ Section independence_section.
 
   Context {Lx: Lens A X}
           {Ly: Lens A Y}.
-
-  Hint Mode Lens - ! : typeclass_instances.
 
   Instance independent_update
            (H: forall a (x: X) (y: Y), update (update a x) y = update (update a y) x) :
@@ -169,25 +176,24 @@ Section independence_section.
 
   (* Shadows [Mixer.independent] *)
   Proposition independent a (x: X) (y: Y):
-    update (update a x) y = update (update a y) x.
+  update (update a y) x = update (update a x) y.
   Proof.
     specialize (Hi a (update a x) (update a y)).
     cbn in Hi. lens_rewrite0 in Hi.
-    symmetry. (* TODO: Swap order in Mixer to match? *)
     exact Hi.
   Qed.
 
   Proposition proj2_update1 (a: A) (x: X) : proj (update a x) = proj a :> Y.
   Proof.
     rewrite <- (@update_proj _ _ Ly a) at 1.
-    rewrite <- independent.
+    rewrite independent.
     apply proj_update.
   Qed.
 
   Proposition proj1_update2 (a: A) (y: Y) : proj (update a y) = proj a :> X.
   Proof.
     rewrite <- (@update_proj _ _ Lx a) at 1.
-    rewrite independent.
+    rewrite <- independent.
     apply proj_update.
   Qed.
 
@@ -245,7 +251,7 @@ Section category_facts_section.
 
   Context {A X Y : Type}.
 
-  Global Instance compositeLens_proper :
+  #[global] Instance compositeLens_proper :
     Proper (lensEq ==> lensEq ==> lensEq) (@compositeLens A X Y).
   Proof.
     intros Lx Lx' Hx
@@ -277,26 +283,31 @@ Section category_facts_section.
     intros a x. reflexivity.
   Qed.
 
-  Global Instance composite_independent_r
+  #[global] Instance composite_independent_r
            (Ly: Lens X Y) {Y'} (Ly': Lens X Y')
-           {Hi: Independent Ly Ly'} : Independent (Ly ∘ Lx) (Ly' ∘ Lx).
+           {Hi: Independent' Ly Ly'} : Independent' (Ly ∘ Lx) (Ly' ∘ Lx).
   Proof.
+    apply independent_forward' in Hi.
     intros a y y'. cbn. lens_rewrite.
   Qed.
 
-  Global Instance composite_independent_l
-         (Ly: Lens A Y) {Hi: Independent Lx Ly}
-         {Z} (Lz: Lens X Z) : Independent (Lz ∘ Lx) Ly.
+  Context (Ly: Lens A Y) {Hi: Independent Lx Ly}
+          {Z} (Lz: Lens X Z).
+
+  #[global] Instance composite_independent_l : Independent' (Lz ∘ Lx) Ly.
   Proof.
     intros a z y. cbn. lens_rewrite.
   Qed.
 
-  (** By symmetry, we also get [Independent Lx (Lz' ∘ Ly)]. *)
+  #[global] Instance composite_independent_l' : Independent' Ly (Lz ∘ Lx).
+  Proof.
+    apply independent_symmetric', composite_independent_l.
+  Qed.
 
 End category_facts_section.
 
 (* TODO: Is this really necessary? *)
-Arguments compositeLens_proper {_ _ _ _ _} Hlx {_ _} Hly.
+(* Arguments compositeLens_proper {_ _ _ _ _} Hlx {_ _} Hly. *)
 
 Proposition composite_compositeMixer {X Y} (Ly: Lens X Y) {A} (Lx: Lens A X) :
   Ly ∘ Lx ≃ compositeMixer Ly Lx.
@@ -313,7 +324,7 @@ Section sublens_ordering_section.
 
   Existing Instance Mixer.submixer_proper.
 
-  Global Instance sublens_comp
+  #[global] Instance sublens_comp
          {Y} {Ly: Lens X Y}
          {Z} {Lz: Lens X Z}
          (Syz: (Ly | Lz)) : (Ly ∘ Lx | Lz ∘ Lx).
@@ -351,7 +362,7 @@ Section sublensFactor_section.
 
   (* TODO: Don't we have this already? Safe as global? *)
   #[refine]
-  Global Instance sublensFactor
+  #[global] Instance sublensFactor
     {A X Y} {LX: Lens A X} {LY: Lens A Y}
     (HS: (LX|LY)) (a:A) : Lens Y X :=
   {
@@ -408,11 +419,11 @@ Section projection_section.
     update s y := (fst s, y);
   }.
 
-  Global Program Instance independent_projs : Independent fstLens sndLens.
+  #[global] Program Instance independent_projs : Independent fstLens sndLens.
 
   Context (Lx: Lens A X) (Ly: Lens A Y) {Hi: Independent' Lx Ly}.
 
-  #[refine] Global Instance prodLens : Lens A (X * Y) :=
+  #[refine] #[global] Instance prodLens : Lens A (X * Y) :=
   {
     proj a := (proj a, proj a);
     update a xy := update (update a (fst xy)) (snd xy);
@@ -456,16 +467,26 @@ Proof.
   rewrite Hx, Hy. reflexivity.
 Qed.
 
-(* This is needed to be able to define products such as [LX * LY * LZ].
-   Is it useful to register the symmetric case as well? *)
-Instance independent_lp1
-         {S X Y} (LX: Lens S X) (LY: Lens S Y) (f: Mixer S)
-         (Hxy: Independent' LX LY)
-         (Hxf: Independent' LX f)
-         (Hyf: Independent' LY f) : Independent' (LX * LY) f.
-Proof.
-  apply independent_forward.
-  rewrite prodLens_prodMixer.
-  apply independent'.
-  typeclasses eauto.
-Qed.
+Section independent_lp1_section.
+
+  Context {S X Y} (LX: Lens S X) (LY: Lens S Y) (f: Mixer S)
+          (Hxy: Independent' LX LY)
+          (Hxf: Independent' LX f)
+          (Hyf: Independent' LY f).
+
+  (* This is needed to be able to define products such as [LX * LY * LZ]. *)
+  #[global] Instance independent_lp1 : Independent' (LX * LY) f.
+  Proof.
+    apply independent_forward.
+    rewrite prodLens_prodMixer.
+    apply independent'.
+    typeclasses eauto.
+  Qed.
+
+  #[global] Instance independent_lp1' : Independent' f (LX * LY).
+  Proof.
+    apply independent_symmetric'.
+    apply independent_lp1.
+  Qed.
+
+End independent_lp1_section.
