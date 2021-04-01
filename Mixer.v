@@ -21,7 +21,7 @@ Class Mixer A :=
   mixer_left x y z : mixer (mixer x y) z = mixer x z;
   mixer_right x y z : mixer x (mixer y z) = mixer x z;
 }.
-#[global]
+#[export]
 Hint Mode Mixer ! : typeclass_instances.
 
 Bind Scope lens_scope with Mixer.
@@ -99,7 +99,7 @@ Class Submixer {A} (f g: Mixer A) : Prop :=
 
 Unset Typeclasses Unique Instances.
 
-#[global]
+#[export]
 Hint Mode Submixer ! ! - : typeclass_instances.
 
 (** Adding [@submixer] as a rewrite hint may cause loops. *)
@@ -178,7 +178,7 @@ Section independence_section.
   Class Independent (f g: Mixer A) :=
     independent x y z : f (g x z) y = g (f x y) z.
 
-  Global Instance independent_symmetric : Symmetric Independent.
+  #[global] Instance independent_symmetric : Symmetric Independent.
   Proof.
     intros f g H x y z; symmetry; apply H.
   Qed.
@@ -206,7 +206,20 @@ Section independence_section.
   Global Instance independent_forward (Hi: Independent f g): Independent' := Hi.
 
   Global Instance independent_backward (Hi: Independent g f): Independent' :=
-    independent_symmetric g f Hi.
+    independent_symmetric _ _ Hi.
+
+  Corollary independent_forward' : Independent f g <-> Independent'.
+  Proof.
+    split; intros H.
+    - now apply independent_forward.
+    - apply H.
+  Qed.
+
+  Corollary independent_backward' : Independent g f <-> Independent'.
+  Proof.
+    setoid_rewrite independent_symm at 1.
+    exact independent_forward'.
+  Qed.
 
   Context {Hi: Independent'}.
 
@@ -220,10 +233,27 @@ Section independence_section.
 
 End independence_section.
 
-#[global] Hint Mode Independent ! ! - : typeclass_instances.
-#[global] Hint Mode Independent' ! ! - : typeclass_instances.
+Instance independent_symmetric' {A} : Symmetric (@Independent' A).
+Proof.
+  intros f g H.
+  apply independent_backward, independent'.
+  exact H.
+Qed.
 
+(* Union *)
+#[export] Hint Mode Independent ! ! - : typeclass_instances.
+#[export] Hint Mode Independent ! - ! : typeclass_instances.
+
+#[export] Hint Mode Independent' ! ! - : typeclass_instances.
+#[export] Hint Mode Independent' ! - ! : typeclass_instances.
+
+Arguments independent_symmetric {_ _ _} _.
+Arguments independent_symm {_ _ _}.
+Arguments independent' {_ _ _} _.
 Arguments independent_right {_ _ _ _}.
+Arguments independent_symmetric' {_ _ _} _.
+Arguments independent_forward' {_ _ _}.
+Arguments independent_backward' {_ _ _}.
 
 Corollary independent_right2
           {A} {f g h: Mixer A} {Hi: Independent' f g} {Hi': Independent' f h}
@@ -232,17 +262,6 @@ Corollary independent_right2
 Proof.
   rewrite <- Hi', independent_right. reflexivity.
 Qed.
-
-Arguments independent' {_ _ _} _.
-
-Instance independent_symmetric' {A} : Symmetric (@Independent' A).
-Proof.
-  intros f g H.
-  apply independent_backward, independent'.
-  exact H.
-Qed.
-
-Arguments independent_symmetric' {_ _ _} _.
 
 
 (** ** Rewrite/reduction tactic *)
@@ -366,6 +385,16 @@ Section propriety_section.
     rewrite Hf. reflexivity.
   Qed.
 
+  (* Corollary *)
+  #[global] Instance independent_proper_sub' :
+    Proper (@Submixer A ==> @Submixer A ==> flip impl) (@Independent' A).
+  Proof.
+    intros f f' Hf
+           g g' Hg.
+    setoid_rewrite <- independent_forward'.
+    now apply independent_proper_sub.
+  Qed.
+
   #[global] Instance independent_proper :
     Proper (@mixerEq A ==> @mixerEq A ==> iff) (@Independent A).
   Proof.
@@ -376,6 +405,16 @@ Section propriety_section.
     split; intro H.
     - rewrite <- Hf, <- Hg. exact H.
     - rewrite Hf, Hg. exact H.
+  Qed.
+
+  (* Corollary *)
+  #[global] Instance independent_proper' :
+    Proper (@mixerEq A ==> @mixerEq A ==> iff) (@Independent' A).
+  Proof.
+    intros f f' Hf
+           g g' Hg.
+    setoid_rewrite <- independent_forward'.
+    now apply independent_proper.
   Qed.
 
 End propriety_section.
@@ -403,7 +442,7 @@ Section prod_section.
   Instance submixer_prod2 : (g | prodMixer).
   Proof. mixer_rewrite'. Qed.
 
-  Global Instance submixer_prod_right
+  #[global] Instance submixer_prod_right
          (h: Mixer A)
          {Hf: (f | h)}
          {Hg: (g | h)} : (prodMixer | h).
@@ -411,7 +450,7 @@ Section prod_section.
 
   (** Thus, [prodMixer] is a least upper bound w.r.t. [Submixer]. *)
 
-  Global Instance submixer_prod_left1
+  #[global] Instance submixer_prod_left1
          (h: Mixer A) {Hf: (h | f)} : (h | prodMixer).
   Proof.
     transitivity f.
@@ -419,7 +458,7 @@ Section prod_section.
     - exact submixer_prod1.
   Qed.
 
-  Global Instance submixer_prod_left2
+  #[global] Instance submixer_prod_left2
          (h: Mixer A) {Hg: (h | g)} : (h | prodMixer).
   Proof.
     transitivity g.
@@ -435,14 +474,16 @@ Section prod_section.
     intros x y z. cbn. mixer_rewrite.
   Qed.
 
-  Global Instance independent_prod'
-           (h: Mixer A)
-           {Hf: Independent' f h}
-           {Hg: Independent' g h} : Independent' prodMixer h.
+  Context (h: Mixer A) {Hf: Independent' f h} {Hg: Independent' g h}.
+
+  #[global] Instance independent_prod' : Independent' prodMixer h.
   Proof.
-    apply independent_forward, independent_prod.
-    - apply Hf.
-    - apply Hg.
+    now apply independent_forward, independent_prod.
+  Qed.
+
+  #[global] Instance independent_prod'' : Independent' h prodMixer.
+  Proof.
+    apply independent_symmetric', independent_prod'.
   Qed.
 
 End prod_section.
