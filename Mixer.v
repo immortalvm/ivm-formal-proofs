@@ -100,7 +100,7 @@ Class Submixer {A} (f g: Mixer A) : Prop :=
 Unset Typeclasses Unique Instances.
 
 #[global]
-Hint Mode Submixer ! ! ! : typeclass_instances.
+Hint Mode Submixer ! ! - : typeclass_instances.
 
 (** Adding [@submixer] as a rewrite hint may cause loops. *)
 
@@ -220,8 +220,8 @@ Section independence_section.
 
 End independence_section.
 
-#[global] Hint Mode Independent ! ! ! : typeclass_instances.
-#[global] Hint Mode Independent' ! ! ! : typeclass_instances.
+#[global] Hint Mode Independent ! ! - : typeclass_instances.
+#[global] Hint Mode Independent' ! ! - : typeclass_instances.
 
 Arguments independent_right {_ _ _ _}.
 
@@ -241,6 +241,8 @@ Proof.
   apply independent_backward, independent'.
   exact H.
 Qed.
+
+Arguments independent_symmetric' {_ _ _} _.
 
 
 (** ** Rewrite/reduction tactic *)
@@ -442,18 +444,6 @@ Section prod_section.
     - apply Hf.
     - apply Hg.
   Qed.
-
-  Global Instance independent_prod''
-           (h: Mixer A)
-           {Hf: Independent' h f}
-           {Hg: Independent' h g} : Independent' h prodMixer.
-  Proof.
-    symmetry.
-    apply independent_prod';
-      symmetry;
-      assumption.
-  Qed.
-
 
 End prod_section.
 

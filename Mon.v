@@ -830,13 +830,17 @@ Section independence_section2.
 
 End independence_section2.
 
+(* Ltac flip_independent' H :=
+  let H' := fresh in
+  remember () *)
+
 Section independence_section3.
 
   Context {S M} {SM: SMonad S M}
           {m m': Mixer S}
           {Hm: Independent' m m'}.
 
-  Global Instance neutral_putM s : Neutral m (putM m' s).
+  Global Instance neutral_putM s : Neutral m' (putM m s).
   Proof.
     intros t.
     rewrite putM_spec.
@@ -848,22 +852,25 @@ Section independence_section3.
   Qed.
 
   Global Instance confined_neutral
-         {X} (mx: M X) {Hmx: Confined m mx} : Neutral m' mx.
+         {X} (mx: M X) {Hmx: Confined m' mx} : Neutral m mx.
   Proof.
     set (keeper := let* s0 := get in
                    ret (let* s1 := get in
-                        put (m' s1 s0))).
-    assert (Neutral m keeper) as Hk.
-    - intros ss. subst keeper. rewrite putM_spec. smon_rewrite'.
+                        put (m s1 s0))).
+    assert (Neutral m' keeper) as Hk.
+    - intros ss. subst keeper. rewrite putM_spec.
+      apply independent_symmetric' in Hm.
+      smon_rewrite'.
+
     - intros ss. transitivity (let* closure := keeper in
-                               putM m' ss;;
+                               putM m ss;;
                                let* x := mx in
                                closure;;
                                ret x).
       + setoid_rewrite Hmx; [ | typeclasses eauto ].
         setoid_rewrite Hmx; [ | typeclasses eauto ].
         subst keeper. rewrite putM_spec. smon_rewrite'.
-      + subst keeper. rewrite putM_spec. smon_rewrite. smon_rewrite.
+      + subst keeper. rewrite putM_spec. smon_rewrite. smon_rewrite. (* TODO: Why two times? *)
   Qed.
 
   (** The proof above is an indication how [get'] and [put'] can be

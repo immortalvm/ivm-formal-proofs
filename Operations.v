@@ -922,20 +922,7 @@ Module Core (MP: MachineParameters).
   Proof.
     setoid_rewrite <- Ha.
     - reflexivity.
-    -
-    (* Hint Mode Independent + + - : typeclass_instances. *)
-    Hint Mode Independent' + - + : typeclass_instances.
-
-
-    Set Typeclasses Depth 10.
-    Set Typeclasses Debug.
-    Set Typeclasses Debug Verbosity 2.
-
-    typeclasses eauto.
-
-    independent_forward
-    composite_independent_l
-
+    - typeclasses eauto.
   Qed.
 
   Lemma pushMany_alt u (H: forall a, addressable (length u) a) :
@@ -1342,7 +1329,7 @@ Module Core (MP: MachineParameters).
   Proof.
     unfold Submixer in H. cbn in H.
     rewrite put_spec. cbn.
-    enough (forall s, update s a = s) as Hu.
+    enough (forall (s: State), update s a = s) as Hu.
     - setoid_rewrite Hu. smon_rewrite.
     - intros s. specialize (H s s (update s a)).
       revert H. lens_rewrite. tauto.

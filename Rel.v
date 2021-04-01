@@ -10,7 +10,7 @@ Unset Suggest Proof Using.
 Class Rel (X: Type) := rel : relation X.
 
 #[global]
-Hint Mode Rel ! : typeclass_instances.
+Hint Mode Rel - : typeclass_instances.
 
 Infix "⊑" := rel (at level 70).
 Arguments rel : clear implicits.

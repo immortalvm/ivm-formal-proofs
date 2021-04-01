@@ -219,7 +219,7 @@ Proof.
     do 3 setoid_rewrite postpone_assume.
     smon_rewrite.
     setoid_rewrite <- confined_put;
-      [ | apply (confined_neutral (m:=MEM));
+      [ | apply (confined_neutral (m':=MEM));
           typeclasses eauto ].
 
     apply bind_extensional. intros u.
@@ -916,6 +916,10 @@ Qed.
 
 (***********)
 
+(* TODO: Move *)
+#[global]
+Hint Mode Proper ! ! - : typeclass_instances.
+
 Lemma wipe_swallow_reordering'
     u {n} (ops: vector Z n) pc (Hdis: u # nAfter n pc) :
   put' PC pc;;
@@ -929,11 +933,21 @@ Proof.
   setoid_rewrite <- bind_assoc at 2.
 
   setoid_rewrite (confined' (confined_wipe u)); [ reflexivity | ].
-  unshelve eapply (confined_neutral (m:= MEM' (nAfter n pc) * PC ));
+  unshelve eapply (confined_neutral (m':= MEM' (nAfter n pc) * PC ));
     try typeclasses eauto.
 
-  apply independent_forward.
+  (* apply independent_forward. *)
+
+  (* #[local]
+  Hint Mode Proper ! - - : typeclass_instances.
+
+  Set Typeclasses Debug.
+  apply independent_symmetric'. *)
+
+  (* Hint Mode composite_independent_l ! ! ! ! ! ! ! !. : typeclass_instances. *)
+
   setoid_rewrite prodLens_prodMixer.
+
   apply independent_prod.
   - apply disjoint_independent'.
     apply disjoint_symmetric. (* TODO: make global? *)
@@ -1070,7 +1084,7 @@ Proof.
   setoid_rewrite simplify_assume.
   setoid_rewrite confined_put.
   2,3:
-    apply (confined_neutral (m:=MEM)); (* TODO *)
+    apply (confined_neutral (m':=MEM)); (* TODO *)
     typeclasses eauto.
 
   transitivity (
@@ -1188,7 +1202,7 @@ Proof.
       + apply wipe_load. exact Hn.
       + setoid_rewrite H.
         smon_rewrite. crush.
-      + apply (confined_neutral _ (m:=MEM)).
+      + apply (confined_neutral _ (m':=MEM)).
   }
   smon_rewrite.
 Qed.
