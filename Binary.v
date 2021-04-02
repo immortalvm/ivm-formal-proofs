@@ -92,21 +92,23 @@ Section cong_section.
 
   Definition cong := irel (fun (z:Z) => z mod 2^n) eq.
 
-  Goal Equivalence cong.
+  #[global] Instance cong_equivalence : Equivalence cong.
+  Proof.
+    apply irel_equivalence.
     typeclasses eauto.
   Qed.
 
   Proposition eq_cong z z' : z = z' -> cong z z'.
   Proof. apply eq_subrelation. Qed.
 
-  Global Instance cong_add_proper : Proper (cong ==> cong ==> cong) Z.add.
+  #[global] Instance cong_add_proper : Proper (cong ==> cong ==> cong) Z.add.
   Proof.
     intros x x' Hx y y' Hy. unfold cong, irel in *.
     setoid_rewrite Z.add_mod; [ | apply pow2_nonzero ..].
     f_equal. f_equal; assumption.
   Qed.
 
-  Global Instance cong_mul_proper : Proper (cong ==> cong ==> cong) Z.mul.
+  #[global] Instance cong_mul_proper : Proper (cong ==> cong ==> cong) Z.mul.
   Proof.
     intros x x' Hx y y' Hy. unfold cong, irel in *.
     setoid_rewrite Z.mul_mod; [ | apply pow2_nonzero ..].
@@ -114,7 +116,7 @@ Section cong_section.
   Qed.
 
   (** Essentially just transitivity and symmetry. *)
-  Global Instance cong_cong_proper : Proper (cong ==> cong ==> iff) cong.
+  #[global] Instance cong_cong_proper : Proper (cong ==> cong ==> iff) cong.
   Proof. typeclasses eauto. Qed.
 
   Proposition cong_mod (z: Z) (m: nat) (Hm: m >= n) : cong (z mod 2^m) z.
@@ -441,7 +443,7 @@ Proof. reflexivity. Qed.
 
 Hint Rewrite butSign_equation_1 : butSign.
 Hint Rewrite @butSign_equation_2 : butSign.
-Global Opaque butSign.
+#[global] Opaque butSign.
 
 Proposition bitsToZ_split {n} (u: Bits (S n)) :
   bitsToZ u = join (butSign u) (signOffset u).
@@ -581,7 +583,7 @@ Proposition bitsToBytes_equation_2 {n} b0 b1 b2 b3 b4 b5 b6 b7 (u: Bits (n * 8))
 Proof. reflexivity. Qed.
 
 Hint Rewrite bitsToBytes_equation_1 @bitsToBytes_equation_2 : bitsToBytes.
-Global Opaque bitsToBytes.
+#[global] Opaque bitsToBytes.
 
 Definition bytesToBits {n} (u: Bytes n) : Bits (n * 8).
 Proof.
@@ -606,7 +608,7 @@ Proof.
 Qed.
 
 Hint Rewrite bytesToBits_equation_1 @bytesToBits_equation_2 @bytesToBits_equation_3 : bytesToBits.
-Global Opaque bytesToBits.
+#[global] Opaque bytesToBits.
 
 Lemma bitsToBytes_bytesToBits {n} (u: Bytes n) : bitsToBytes (bytesToBits u) = u.
 Proof.
@@ -633,12 +635,7 @@ Proof.
   lia.
 Qed.
 
-Hint Opaque cong : rewrite.
-
-Instance cong_equivalence n : Equivalence (cong n).
-Proof.
-  typeclasses eauto.
-Qed.
+#[export] Hint Opaque cong : rewrite.
 
 Ltac cong_tac :=
   apply toBits_cong;
@@ -691,7 +688,7 @@ Proposition bytesToLongs_equation_2 {n} b0 b1 b2 b3 b4 b5 b6 b7 (u: Bytes (n * 8
 Proof. reflexivity. Qed.
 
 Hint Rewrite bytesToLongs_equation_1 @bytesToLongs_equation_2 : bytesToLongs.
-Global Opaque bytesToLongs.
+#[global] Opaque bytesToLongs.
 
 Proposition bytesToBits_equation_2' {n} b (u: Bytes n) :
   @bytesToBits (S n) (b :: u) = b ++ bytesToBits u.
@@ -712,4 +709,3 @@ Proof.
   dependent elimination b7 as [c0 :: c1 :: c2 :: c3 :: c4 :: c5 :: c6 :: c7 :: []].
   reflexivity.
 Qed.
-

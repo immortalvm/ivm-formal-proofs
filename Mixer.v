@@ -66,7 +66,7 @@ Section equality_section.
     intros a x. reflexivity.
   Qed.
 
-  Global Instance mixerEq_equivalence : Equivalence (@mixerEq A).
+  #[global] Instance mixerEq_equivalence : Equivalence (@mixerEq A).
   Proof.
     split.
     - intro f. exact mixer_refl.
@@ -78,7 +78,7 @@ Section equality_section.
   Qed.
 
   (* TODO: Is this safe? *)
-  Global Instance mixer_proper :
+  #[global] Instance mixer_proper :
     Proper (@mixerEq A ==> eq ==> eq ==> eq) (@mixer A).
   Proof.
     repeat intro.
@@ -128,10 +128,10 @@ Section submixer_section.
       reflexivity.
   Qed.
 
-  Global Instance submixer_refl {f: Mixer A} : (f | f).
+  #[global] Instance submixer_refl {f: Mixer A} : (f | f).
   Proof. repeat intro. apply mixer_assoc. Qed.
 
-  Global Instance submixer_reflexive : Reflexive (@Submixer A).
+  #[global] Instance submixer_reflexive : Reflexive (@Submixer A).
   Proof.
     intro. apply submixer_refl.
   Qed.
@@ -203,9 +203,9 @@ Section independence_section.
   Class Independent' :=
     independent' : Independent f g.
 
-  Global Instance independent_forward (Hi: Independent f g): Independent' := Hi.
+  #[global] Instance independent_forward (Hi: Independent f g): Independent' := Hi.
 
-  Global Instance independent_backward (Hi: Independent g f): Independent' :=
+  #[global] Instance independent_backward (Hi: Independent g f): Independent' :=
     independent_symmetric _ _ Hi.
 
   Corollary independent_forward' : Independent f g <-> Independent'.
@@ -428,7 +428,7 @@ Section prod_section.
 
   Instance ind_prod : Independent f g := independent' Hi.
 
-  #[refine] Global Instance prodMixer : Mixer A :=
+  #[refine] #[global] Instance prodMixer : Mixer A :=
   {
     mixer x y := g (f x y) y;
   }.

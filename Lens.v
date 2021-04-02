@@ -291,12 +291,14 @@ Section category_facts_section.
     intros a y y'. cbn. lens_rewrite.
   Qed.
 
-  Context (Ly: Lens A Y) {Hi: Independent Lx Ly}
+  Context (Ly: Lens A Y) {Hi: Independent' Lx Ly}
           {Z} (Lz: Lens X Z).
 
   #[global] Instance composite_independent_l : Independent' (Lz ∘ Lx) Ly.
   Proof.
-    intros a z y. cbn. lens_rewrite.
+    intros a z y. cbn.
+    apply independent' in Hi.
+    lens_rewrite.
   Qed.
 
   #[global] Instance composite_independent_l' : Independent' Ly (Lz ∘ Lx).

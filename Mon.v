@@ -34,8 +34,8 @@ Class SMonad (S: Type) (M: Type -> Type): Type :=
                                  get >>= (fun s => f s s);
 }.
 
-#[global]
-Hint Mode SMonad - - : typeclass_instances.
+#[global] Hint Mode SMonad - ! : typeclass_instances.
+#[global] Hint Mode SMonad ! - : typeclass_instances.
 
 Notation "mx >>= f" := (bind mx f) : monad_scope.
 
@@ -184,9 +184,11 @@ This is a mess. We often need [setoid_rewrite] and/or [rewrite_strat], but
 they appear buggy. Hence, we also use [rewrite] some places to increase
 the success rate. *)
 
-Ltac smon_rewrite0 :=
+Ltac smon_rewrite00 :=
   try (rewrite_strat (outermost <- bind_ret));
-  try rewrite <- bind_ret;
+  try rewrite <- bind_ret.
+
+Ltac smon_rewrite01 :=
   repeat (rewrite bind_assoc
           || setoid_rewrite bind_assoc);
   repeat (setoid_rewrite ret_bind);
@@ -216,16 +218,18 @@ Ltac smon_rewrite2 :=
           || setoid_rewrite bind_ret_tt
           || setoid_rewrite ret_bind).
 
-Ltac smon_rewrite :=
-  smon_rewrite0;
+(* Ltac smon_rewrite :=
+  smon_rewrite00;
+  smon_rewrite01;
   ltac2:(smon_rewrite1 ());
   smon_rewrite2;
-  try reflexivity.
+  try reflexivity. *)
 
-Ltac smon_rewrite' :=
+Ltac smon_rewrite :=
+  smon_rewrite00;
   repeat (lens_rewrite1
           || reflexivity
-          || smon_rewrite0; ltac2:(smon_rewrite1()));
+          || smon_rewrite01; ltac2:(smon_rewrite1()));
   smon_rewrite2.
 
 Goal forall {S M X Y} {SM: SMonad S M} (g: S -> X) (f: X -> M Y),
@@ -257,7 +261,7 @@ Section lensmonad_section.
     put a := let* s := get in put (update s a);
   }.
   Proof.
-    all: intros; smon_rewrite'.
+    all: intros; smon_rewrite.
     - apply bind_extensional. assumption.
   Defined.
 
@@ -359,7 +363,7 @@ Section mixer_section.
             f tt tt.
   Proof.
     rewrite putM_spec.
-    smon_rewrite'.
+    smon_rewrite.
   Qed.
 
   Global Opaque putM.
@@ -475,9 +479,11 @@ Section neutral_section.
     destruct pq; [apply Hf | apply Hg].
   Qed.
 
+  Hint Mode SMonad - - : typeclass_instances.
+
   Global Instance neutral_ret {X} (x: X) : Neutral (ret x).
   Proof.
-    intros aa. rewrite putM_spec. smon_rewrite'.
+    intros aa. rewrite putM_spec. smon_rewrite.
   Qed.
 
   Global Instance neutral_bind
@@ -488,7 +494,7 @@ Section neutral_section.
     unfold Neutral in *. intros aa.
     setoid_rewrite (Hmx aa). smon_rewrite.
     setoid_rewrite (Hf _ aa).
-    rewrite putM_spec. smon_rewrite'.
+    rewrite putM_spec. smon_rewrite.
   Qed.
 
   Global Instance neutral_err {X} : Neutral (err : M X).
@@ -559,7 +565,7 @@ Section neutral_section.
   Proof.
     unfold Confined. intros. smon_rewrite.
     setoid_rewrite (Hmy s). rewrite putM_spec.
-    smon_rewrite'.
+    smon_rewrite.
   Qed.
 
 End neutral_section.
@@ -624,7 +630,7 @@ Section sublens_section.
       ret (proj a).
   Proof.
     rewrite put_spec, get_spec.
-    cbn. smon_rewrite'.
+    cbn. smon_rewrite.
   Qed.
 
   Global Instance lens_get_proper {A} :
@@ -658,7 +664,7 @@ Section sublens_section.
            H s.
     destruct Hmx.
     setoid_rewrite (H s). rewrite putM_spec.
-    smon_rewrite'.
+    smon_rewrite.
   Qed.
 
   Global Instance neutral_proper {X} :
@@ -782,7 +788,7 @@ Section independence_section1.
             f u b.
   Proof.
     rewrite get_spec, put_spec.
-    smon_rewrite'.
+    smon_rewrite.
   Qed.
 
   Proposition flip_put_put (a: A) (b: B) {X} (f: unit -> unit -> M X) :
@@ -793,7 +799,7 @@ Section independence_section1.
             f u v.
   Proof.
     setoid_rewrite put_spec'.
-    smon_rewrite'.
+    smon_rewrite.
   Qed.
 
 End independence_section1.
@@ -845,9 +851,7 @@ Section independence_section3.
     intros t.
     rewrite putM_spec.
     smon_rewrite.
-    (* TODO: [mixer_rewrite] ought to be sufficient here. *)
-    set (H := independent' Hm).
-    setoid_rewrite <- Mixer.independent.
+    apply independent' in Hm.
     mixer_rewrite.
   Qed.
 
@@ -860,7 +864,7 @@ Section independence_section3.
     assert (Neutral m' keeper) as Hk.
     - intros ss. subst keeper. rewrite putM_spec.
       apply independent_symmetric' in Hm.
-      smon_rewrite'.
+      smon_rewrite.
 
     - intros ss. transitivity (let* closure := keeper in
                                putM m ss;;
@@ -869,8 +873,8 @@ Section independence_section3.
                                ret x).
       + setoid_rewrite Hmx; [ | typeclasses eauto ].
         setoid_rewrite Hmx; [ | typeclasses eauto ].
-        subst keeper. rewrite putM_spec. smon_rewrite'.
-      + subst keeper. rewrite putM_spec. smon_rewrite. smon_rewrite. (* TODO: Why two times? *)
+        subst keeper. rewrite putM_spec. smon_rewrite.
+      + subst keeper. rewrite putM_spec. smon_rewrite.
   Qed.
 
   (** The proof above is an indication how [get'] and [put'] can be
@@ -955,6 +959,8 @@ Section assumption_section.
   Qed.
 
   Close Scope vector.
+
+  Hint Mode SMonad - - : typeclass_instances.
 
   Proposition assume_and P {DP: Decidable P} Q {DQ: Decidable Q} :
     assume (P /\ Q) =

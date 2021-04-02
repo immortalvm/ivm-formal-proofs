@@ -571,6 +571,11 @@ Qed.
 
 (** ** Relations *)
 
+#[global] Hint Mode Reflexive ! - : typeclass_instances.
+#[global] Hint Mode Symmetric ! - : typeclass_instances.
+#[global] Hint Mode Transitive ! - : typeclass_instances.
+#[global] Hint Mode Equivalence ! - : typeclass_instances.
+
 Section relation_section.
 
   Context {X} {R: relation X}.
@@ -589,16 +594,16 @@ Section irel_section.
 
   Definition irel : relation X := fun x x' => R (f x) (f x').
 
-  Global Instance irel_reflexive {HR: Reflexive R} : Reflexive irel.
+  Instance irel_reflexive {HR: Reflexive R} : Reflexive irel.
   Proof. unfold irel. intros x. reflexivity. Qed.
 
-  Global Instance irel_symmetric {HR: Symmetric R} : Symmetric irel.
+  Instance irel_symmetric {HR: Symmetric R} : Symmetric irel.
   Proof. unfold irel. intros x y H. symmetry. exact H. Qed.
 
-  Global Instance irel_transitive {HR: Transitive R} : Transitive irel.
+  Instance irel_transitive {HR: Transitive R} : Transitive irel.
   Proof. unfold irel. intros x y z Hxy Hyz. transitivity (f y); assumption. Qed.
 
-  Global Instance irel_equivalence {HR: Equivalence R} : Equivalence irel.
+  Instance irel_equivalence {HR: Equivalence R} : Equivalence irel.
   Proof. split; typeclasses eauto. Qed.
 
 End irel_section.
