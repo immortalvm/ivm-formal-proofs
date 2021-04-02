@@ -285,31 +285,22 @@ Section category_facts_section.
 
   #[global] Instance composite_independent_r
            (Ly: Lens X Y) {Y'} (Ly': Lens X Y')
-           {Hi: Independent' Ly Ly'} : Independent' (Ly ∘ Lx) (Ly' ∘ Lx).
+           {Hi: Independent Ly Ly'} : Independent (Ly ∘ Lx) (Ly' ∘ Lx).
   Proof.
-    apply independent_forward' in Hi.
     intros a y y'. cbn. lens_rewrite.
   Qed.
 
   Context (Ly: Lens A Y) {Hi: Independent' Lx Ly}
           {Z} (Lz: Lens X Z).
 
-  #[global] Instance composite_independent_l : Independent' (Lz ∘ Lx) Ly.
+  #[global] Instance composite_independent_l : Independent (Lz ∘ Lx) Ly.
   Proof.
     intros a z y. cbn.
     apply independent' in Hi.
     lens_rewrite.
   Qed.
 
-  #[global] Instance composite_independent_l' : Independent' Ly (Lz ∘ Lx).
-  Proof.
-    apply independent_symmetric', composite_independent_l.
-  Qed.
-
 End category_facts_section.
-
-(* TODO: Is this really necessary? *)
-(* Arguments compositeLens_proper {_ _ _ _ _} Hlx {_ _} Hly. *)
 
 Proposition composite_compositeMixer {X Y} (Ly: Lens X Y) {A} (Lx: Lens A X) :
   Ly ∘ Lx ≃ compositeMixer Ly Lx.
@@ -421,7 +412,9 @@ Section projection_section.
     update s y := (fst s, y);
   }.
 
-  #[global] Program Instance independent_projs : Independent fstLens sndLens.
+  #[global]
+  #[program]
+  Instance independent_projs : Independent fstLens sndLens.
 
   Context (Lx: Lens A X) (Ly: Lens A Y) {Hi: Independent' Lx Ly}.
 
@@ -461,8 +454,8 @@ Qed.
 Lemma prodLens_proper {A X Y}
       {Lx Lx' : Lens A X} (Hx: Lx ≅ Lx')
       {Ly Ly' : Lens A Y} (Hy: Ly ≅ Ly')
-      {Hi: Independent Lx Ly}
-      {Hi': Independent Lx' Ly'} : (* Follows from [Hi] *)
+      {Hi: Independent' Lx Ly}
+      {Hi': Independent' Lx' Ly'} : (* Follows from [Hi] *)
   Lx * Ly ≅ Lx' * Ly'.
 Proof.
   intros a [x y]. cbn.
@@ -477,18 +470,11 @@ Section independent_lp1_section.
           (Hyf: Independent' LY f).
 
   (* This is needed to be able to define products such as [LX * LY * LZ]. *)
-  #[global] Instance independent_lp1 : Independent' (LX * LY) f.
+  #[global] Instance independent_lp1 : Independent (LX * LY) f.
   Proof.
     apply independent_forward.
     rewrite prodLens_prodMixer.
-    apply independent'.
     typeclasses eauto.
-  Qed.
-
-  #[global] Instance independent_lp1' : Independent' f (LX * LY).
-  Proof.
-    apply independent_symmetric'.
-    apply independent_lp1.
   Qed.
 
 End independent_lp1_section.

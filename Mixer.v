@@ -240,10 +240,7 @@ Proof.
   exact H.
 Qed.
 
-(* Union *)
 #[export] Hint Mode Independent ! ! - : typeclass_instances.
-#[export] Hint Mode Independent ! - ! : typeclass_instances.
-
 #[export] Hint Mode Independent' ! ! - : typeclass_instances.
 #[export] Hint Mode Independent' ! - ! : typeclass_instances.
 
@@ -466,24 +463,14 @@ Section prod_section.
     - exact submixer_prod2.
   Qed.
 
-  Instance independent_prod
+  #[global] Instance independent_prod
            (h: Mixer A)
-           {Hf: Independent f h}
-           {Hg: Independent g h} : Independent prodMixer h.
+           {Hf: Independent' f h}
+           {Hg: Independent' g h} : Independent prodMixer h.
   Proof.
-    intros x y z. cbn. mixer_rewrite.
-  Qed.
-
-  Context (h: Mixer A) {Hf: Independent' f h} {Hg: Independent' g h}.
-
-  #[global] Instance independent_prod' : Independent' prodMixer h.
-  Proof.
-    now apply independent_forward, independent_prod.
-  Qed.
-
-  #[global] Instance independent_prod'' : Independent' h prodMixer.
-  Proof.
-    apply independent_symmetric', independent_prod'.
+    intros x y z. cbn.
+    apply independent' in Hf, Hg.
+    mixer_rewrite.
   Qed.
 
 End prod_section.
@@ -495,9 +482,9 @@ Infix "×" := prodMixer (at level 40, left associativity) : lens_scope.
 Proposition prodMixer_proper {A}
             {f f': Mixer A} (Hf: f ≃ f')
             {g g': Mixer A} (Hg: g ≃ g')
-            {Hi: Independent f g}
+            {Hi: Independent' f g}
             (* [Hi'] follows from [Hi] *)
-            {Hi': Independent f' g'} :
+            {Hi': Independent' f' g'} :
   f × g ≃ f' × g'.
 Proof.
   intros x y. cbn. rewrite Hf, Hg. reflexivity.

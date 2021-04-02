@@ -889,7 +889,6 @@ Section assumption_section.
 
   Context {S M} {SM: SMonad S M}.
 
-  (* TODO: Move *)
   Proposition simplify_assume P {DP: Decidable P} {X} (mx: M X) :
     assume P;; mx = assume' P;; mx.
   Proof.

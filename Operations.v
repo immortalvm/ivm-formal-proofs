@@ -559,16 +559,6 @@ Module Core (MP: MachineParameters).
       simp_loadMany.
       smon_rewrite.
       setoid_rewrite offset_inc.
-
-      (* Set Typeclasses Debug.
-      Set Typeclasses Depth 20.
-      Set Typeclasses Debug Verbosity 2. *)
-
-      (* Remove Hints composite_independent_l : typeclass_instances.
-      Remove Hints composite_independent_l' : typeclass_instances.
-
-      Remove Hints composite_independent_r : typeclass_instances. *)
-
       setoid_rewrite (confined_load _ _ _ _).
       reflexivity.
   Qed.
