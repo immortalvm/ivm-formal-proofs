@@ -6,7 +6,7 @@ Unset Suggest Proof Using.
 
 (* Cf. the 'sigma' type of Equations. *)
 Set Primitive Projections.
-Global Unset Printing Primitive Projection Parameters.
+#[global] Unset Printing Primitive Projection Parameters.
 
 
 (** ** Images *)
@@ -20,9 +20,9 @@ Record Image (C: Type) :=
       pixel (x: N) (Hx: x < width) (y: N) (Hy: y < height): C;
     }.
 
-Arguments width {_} _.
-Arguments height {_} _.
-Arguments pixel {_} _ {_} Hx {_} Hy.
+#[global] Arguments width {_} _.
+#[global] Arguments height {_} _.
+#[global] Arguments pixel {_} _ {_} Hx {_} Hy.
 
 Definition noImage {C}: Image C.
   refine {|
@@ -194,42 +194,42 @@ Module Core (MP: MachineParameters).
 
   Context {MP1: MachineParams1}.
 
-  Global Existing Instance independent_MEM_IMAGE.
-  Global Existing Instance independent_MEM_BYTES.
-  Global Existing Instance independent_MEM_CHARS.
-  Global Existing Instance independent_MEM_SOUND.
-  Global Existing Instance independent_MEM_LOG.
-  Global Existing Instance independent_MEM_INP.
-  Global Existing Instance independent_MEM_PC.
-  Global Existing Instance independent_MEM_SP.
-  Global Existing Instance independent_IMAGE_BYTES.
-  Global Existing Instance independent_IMAGE_CHARS.
-  Global Existing Instance independent_IMAGE_SOUND.
-  Global Existing Instance independent_IMAGE_LOG.
-  Global Existing Instance independent_IMAGE_INP.
-  Global Existing Instance independent_IMAGE_PC.
-  Global Existing Instance independent_IMAGE_SP.
-  Global Existing Instance independent_BYTES_CHARS.
-  Global Existing Instance independent_BYTES_SOUND.
-  Global Existing Instance independent_BYTES_LOG.
-  Global Existing Instance independent_BYTES_INP.
-  Global Existing Instance independent_BYTES_PC.
-  Global Existing Instance independent_BYTES_SP.
-  Global Existing Instance independent_CHARS_SOUND.
-  Global Existing Instance independent_CHARS_LOG.
-  Global Existing Instance independent_CHARS_INP.
-  Global Existing Instance independent_CHARS_PC.
-  Global Existing Instance independent_CHARS_SP.
-  Global Existing Instance independent_SOUND_LOG.
-  Global Existing Instance independent_SOUND_INP.
-  Global Existing Instance independent_SOUND_PC.
-  Global Existing Instance independent_SOUND_SP.
-  Global Existing Instance independent_LOG_INP.
-  Global Existing Instance independent_LOG_PC.
-  Global Existing Instance independent_LOG_SP.
-  Global Existing Instance independent_INP_PC.
-  Global Existing Instance independent_INP_SP.
-  Global Existing Instance independent_PC_SP.
+  #[global] Existing Instance independent_MEM_IMAGE.
+  #[global] Existing Instance independent_MEM_BYTES.
+  #[global] Existing Instance independent_MEM_CHARS.
+  #[global] Existing Instance independent_MEM_SOUND.
+  #[global] Existing Instance independent_MEM_LOG.
+  #[global] Existing Instance independent_MEM_INP.
+  #[global] Existing Instance independent_MEM_PC.
+  #[global] Existing Instance independent_MEM_SP.
+  #[global] Existing Instance independent_IMAGE_BYTES.
+  #[global] Existing Instance independent_IMAGE_CHARS.
+  #[global] Existing Instance independent_IMAGE_SOUND.
+  #[global] Existing Instance independent_IMAGE_LOG.
+  #[global] Existing Instance independent_IMAGE_INP.
+  #[global] Existing Instance independent_IMAGE_PC.
+  #[global] Existing Instance independent_IMAGE_SP.
+  #[global] Existing Instance independent_BYTES_CHARS.
+  #[global] Existing Instance independent_BYTES_SOUND.
+  #[global] Existing Instance independent_BYTES_LOG.
+  #[global] Existing Instance independent_BYTES_INP.
+  #[global] Existing Instance independent_BYTES_PC.
+  #[global] Existing Instance independent_BYTES_SP.
+  #[global] Existing Instance independent_CHARS_SOUND.
+  #[global] Existing Instance independent_CHARS_LOG.
+  #[global] Existing Instance independent_CHARS_INP.
+  #[global] Existing Instance independent_CHARS_PC.
+  #[global] Existing Instance independent_CHARS_SP.
+  #[global] Existing Instance independent_SOUND_LOG.
+  #[global] Existing Instance independent_SOUND_INP.
+  #[global] Existing Instance independent_SOUND_PC.
+  #[global] Existing Instance independent_SOUND_SP.
+  #[global] Existing Instance independent_LOG_INP.
+  #[global] Existing Instance independent_LOG_PC.
+  #[global] Existing Instance independent_LOG_SP.
+  #[global] Existing Instance independent_INP_PC.
+  #[global] Existing Instance independent_INP_SP.
+  #[global] Existing Instance independent_PC_SP.
 
   Class MachineParams2 :=
   {
@@ -239,9 +239,9 @@ Module Core (MP: MachineParameters).
 
   Context {MP2: MachineParams2}.
 
-  Global Existing Instance H_eqdec.
-  Global Existing Instance offset_action.
-  Global Existing Instance H_mon.
+  #[global] Existing Instance H_eqdec.
+  #[global] Existing Instance offset_action.
+  #[global] Existing Instance H_mon.
 
   Existing Instance submixer_fst.
 
@@ -310,7 +310,7 @@ Module Core (MP: MachineParameters).
     unfold MEM'. typeclasses eauto.
   Qed.
 
-  Global Instance subset_mem2 f {Hf: (MEM | f)} u : (MEM' u | f).
+  #[global] Instance subset_mem2 f {Hf: (MEM | f)} u : (MEM' u | f).
   Proof.
     transitivity MEM.
     - apply subset_mem.
@@ -325,24 +325,24 @@ Module Core (MP: MachineParameters).
     unfold MEM''. typeclasses eauto.
   Qed.
 
-  Global Instance point_mem2 f {Hf: (MEM | f)} a : (MEM'' a | f).
+  #[global] Instance point_mem2 f {Hf: (MEM | f)} a : (MEM'' a | f).
   Proof.
     transitivity MEM.
     - apply point_mem.
     - exact Hf.
   Qed.
 
-  Global Instance point_mem' {a u} (Hau: a ∈ u) : (MEM'' a | MEM' u).
+  #[global] Instance point_mem' {a u} (Hau: a ∈ u) : (MEM'' a | MEM' u).
   Proof.
     unfold MEM'', MEM'.
     apply sublens_comp.
     refine (pointLens_sublens Hau).
   Qed.
 
-  Global Instance point_mem'' {a} : (MEM'' a | MEM' !{a}) :=
+  #[global] Instance point_mem'' {a} : (MEM'' a | MEM' !{a}) :=
     point_mem' DSet.refl.
 
-  Global Instance point_independent {a a'} (H:a<>a') :
+  #[global] Instance point_independent {a a'} (H:a<>a') :
     Independent (MEM'' a) (MEM'' a').
   Proof.
     unfold MEM''.
@@ -360,13 +360,13 @@ Module Core (MP: MachineParameters).
     end.
   Definition extr_spec := unfolded_eq (@extr).
 
-  Global Instance confined_extr
+  #[global] Instance confined_extr
          {X} (ox: option X) : Confined fstMixer (extr ox).
   Proof.
     typeclasses eauto.
   Qed.
 
-  Global Opaque extr.
+  #[global] Opaque extr.
 
 
   (** ** [load] and [store] *)
@@ -391,13 +391,12 @@ Module Core (MP: MachineParameters).
       smon_rewrite.
   Qed.
 
-  Global Instance confined_load {a} : Confined (MEM'' a) (load a).
+  #[global] Instance confined_load {a} : Confined (MEM'' a) (load a).
   Proof.
     typeclasses eauto.
   Qed.
-
-  (* TODO: Make global opaque *)
-  Opaque load.
+  #[global] Arguments confined_load {_ _ _ _ _ _}.
+  #[global] Opaque load.
 
 
   (** *** [store] *)
@@ -428,13 +427,12 @@ Module Core (MP: MachineParameters).
 
   (* TODO: [unfold compose] is annoying. Use notation instead? *)
 
-  Global Instance confined_store a x : Confined (MEM'' a) (store a x).
+  #[global] Instance confined_store a x : Confined (MEM'' a) (store a x).
   Proof.
     typeclasses eauto.
   Qed.
-
-  (* TODO: Make global opaque *)
-  Opaque store.
+  #[global] Arguments confined_store {_ _ _ _ _}.
+  #[global] Opaque store.
 
   (** *** Reordering load and store operations *)
 
@@ -516,13 +514,13 @@ Module Core (MP: MachineParameters).
       let* r := loadMany n (offset 1 a) in
       ret (x :: r).
 
-  Global Instance subset_mem' {u v} {Huv: u ⊆ v} : (MEM' u | MEM' v).
+  #[global] Instance subset_mem' {u v} {Huv: u ⊆ v} : (MEM' u | MEM' v).
   Proof.
     apply sublens_comp, submixer_subset.
     exact Huv.
   Qed.
 
-  Global Instance confined_loadMany n a : Confined (MEM' (nAfter n a)) (loadMany n a).
+  #[global] Instance confined_loadMany n a : Confined (MEM' (nAfter n a)) (loadMany n a).
   Proof.
     revert a.
     induction n;
@@ -532,6 +530,7 @@ Module Core (MP: MachineParameters).
     - specialize (IHn (offset 1 a)).
       typeclasses eauto.
   Qed.
+  #[global] Arguments confined_loadMany {_ _ _ _ _ _ _}.
 
   (** [simp] does not work under binders (yet), and (for some reason)
       [setoid_rewrite] requires an unneccessary Addr argument. *)
@@ -559,18 +558,18 @@ Module Core (MP: MachineParameters).
       simp_loadMany.
       smon_rewrite.
       setoid_rewrite offset_inc.
-      setoid_rewrite (confined_load _ _ _ _).
+      setoid_rewrite confined_load.
       reflexivity.
   Qed.
 
-  Global Instance confined_next n : Confined (MEM * PC) (next n).
+  #[global] Instance confined_next n : Confined (MEM * PC) (next n).
   Proof.
     rewrite next_spec.
     typeclasses eauto.
   Qed.
 
   (* TODO: Does this have a useful form? *)
-  Global Instance confined_next' a n :
+  #[global] Instance confined_next' a n :
     Confined (MEM' (nAfter n a) * PC)
              (put' PC a;; next n).
   Proof.
@@ -591,12 +590,12 @@ Module Core (MP: MachineParameters).
     load sp.
   Definition pop_spec := unfolded_eq (pop).
 
-  Global Instance confined_pop : Confined (MEM * SP) pop.
+  #[global] Instance confined_pop : Confined (MEM * SP) pop.
   Proof.
     typeclasses eauto.
   Qed.
 
-  Global Instance confined_pop' sp :
+  #[global] Instance confined_pop' sp :
     Confined (MEM'' sp * SP) (put' SP sp;;
                               pop).
   Proof.
@@ -604,7 +603,7 @@ Module Core (MP: MachineParameters).
     typeclasses eauto.
   Qed.
 
-  Global Opaque pop.
+  #[global] Opaque pop.
 
   Equations(noind) popMany (n: nat): M (Cells n) :=
     popMany 0 := ret [];
@@ -636,19 +635,19 @@ Module Core (MP: MachineParameters).
     - rewrite IHn. clear IHn.
       rewrite pop_spec.
       smon_rewrite.
-      setoid_rewrite (confined_load _ _ _ _).
+      setoid_rewrite confined_load.
       smon_rewrite.
       setoid_rewrite offset_inc.
       smon_rewrite.
   Qed.
 
-  Global Instance confined_popMany n : Confined (MEM * SP) (popMany n).
+  #[global] Instance confined_popMany n : Confined (MEM * SP) (popMany n).
   Proof.
     rewrite popMany_spec.
     typeclasses eauto.
   Qed.
 
-  Global Instance confined_popMany' sp n :
+  #[global] Instance confined_popMany' sp n :
     Confined (MEM' (nAfter n sp) * SP) (put' SP sp;;
                                         popMany n).
   Proof.
@@ -693,7 +692,7 @@ Module Core (MP: MachineParameters).
       reflexivity.
   Qed.
 
-  Global Instance confined_storeMany a u :
+  #[global] Instance confined_storeMany a u :
     Confined (MEM' (nAfter (length u) a))
              (storeMany a u).
   Proof.
@@ -706,6 +705,7 @@ Module Core (MP: MachineParameters).
     - specialize (IH (offset 1 a)).
       typeclasses eauto.
   Qed.
+  #[global] Arguments confined_storeMany {_ _ _ _ _ _ _}.
 
   Lemma storeMany_rev a x u :
     storeMany a (rev (x :: u)) = storeMany a (rev u);;
@@ -814,12 +814,12 @@ Module Core (MP: MachineParameters).
     store a x.
   Definition push_spec := unfolded_eq (push).
 
-  Global Instance confined_push x : Confined (MEM * SP) (push x).
+  #[global] Instance confined_push x : Confined (MEM * SP) (push x).
   Proof.
     typeclasses eauto.
   Qed.
 
-  Global Instance confined_push' sp x :
+  #[global] Instance confined_push' sp x :
     Confined (MEM'' (offset (-1) sp) * SP) (put' SP sp;;
                                             push x).
   Proof.
@@ -827,7 +827,7 @@ Module Core (MP: MachineParameters).
     typeclasses eauto.
   Qed.
 
-  Global Opaque push.
+  #[global] Opaque push.
 
   (** NB: Stores the elements in reversed order. *)
   Equations(noind) pushManyR (u: list Cell): M unit :=
@@ -835,7 +835,7 @@ Module Core (MP: MachineParameters).
     pushManyR (x :: u) := push x;;
                          pushManyR u.
 
-  Global Instance confined_pushManyR u :
+  #[global] Instance confined_pushManyR u :
     Confined (MEM * SP) (pushManyR u).
   Proof.
     induction u;
@@ -866,7 +866,7 @@ Module Core (MP: MachineParameters).
 
   Hint Extern 3 (_ ⊆ nBefore _ _) => rapply nBefore_succ : typeclass_instances.
 
-  Global Instance confined_pushManyR' sp u :
+  #[global] Instance confined_pushManyR' sp u :
     Confined (MEM' (nBefore (length u) sp) * SP)
              (put' SP sp;;
               pushManyR u).
@@ -880,7 +880,7 @@ Module Core (MP: MachineParameters).
 
     simpl length. rewrite push_spec. smon_rewrite.
 
-    setoid_rewrite (confined_store _ _ _ _ _).
+    setoid_rewrite confined_store.
     apply confined_bind; [ typeclasses eauto | ].
     intros [].
     (* [typeclasses eauto] needs help, since it is not able to deconstruct IH. *)
@@ -951,8 +951,8 @@ Module Core (MP: MachineParameters).
       rewrite push_spec.
       smon_rewrite.
       apply bind_extensional. intros sp.
-      setoid_rewrite <- (confined_storeMany _ _ _ _ _).
-      setoid_rewrite <- (confined_storeMany _ _ _ _ _).
+      setoid_rewrite <- confined_storeMany.
+      setoid_rewrite <- confined_storeMany.
       smon_rewrite.
       setoid_rewrite <- Z_action_add.
       subst f.
@@ -989,9 +989,9 @@ Module Core (MP: MachineParameters).
 
   Definition readFrame_spec := unfolded_eq (readFrame).
 
-  Global Opaque readFrame.
+  #[global] Opaque readFrame.
 
-  Global Instance confined_readFrame i : Confined INP (readFrame i).
+  #[global] Instance confined_readFrame i : Confined INP (readFrame i).
   Proof.
     rewrite readFrame_spec.
     typeclasses eauto.
@@ -1006,9 +1006,9 @@ Module Core (MP: MachineParameters).
 
   Definition readPixel_spec := unfolded_eq (readPixel).
 
-  Global Opaque readPixel.
+  #[global] Opaque readPixel.
 
-  Global Instance confined_readPixel x y : Confined INP (readPixel x y).
+  #[global] Instance confined_readPixel x y : Confined INP (readPixel x y).
   Proof.
     rewrite readPixel_spec.
     typeclasses eauto.
@@ -1027,24 +1027,24 @@ Module Core (MP: MachineParameters).
     let* chars := get' OUT_CHARS in
     put' OUT_CHARS (cons c chars).
   Definition putChar_spec := unfolded_eq (putChar).
-  Global Opaque putChar.
-  Global Instance confined_putChar c : Confined OUT_CHARS (putChar c).
+  #[global] Opaque putChar.
+  #[global] Instance confined_putChar c : Confined OUT_CHARS (putChar c).
   Proof. rewrite putChar_spec. typeclasses eauto. Qed.
 
   Definition putByte (b: Byte) : M unit :=
     let* bytes := get' OUT_BYTES in
     put' OUT_BYTES (cons b bytes).
   Definition putByte_spec := unfolded_eq (putByte).
-  Global Opaque putByte.
-  Global Instance confined_putByte c : Confined OUT_BYTES (putByte c).
+  #[global] Opaque putByte.
+  #[global] Instance confined_putByte c : Confined OUT_BYTES (putByte c).
   Proof. rewrite putByte_spec. typeclasses eauto. Qed.
 
   Definition addSample (l r: Sample) : M unit :=
     let* samples := get' OUT_SOUND in
     put' OUT_SOUND (extendSamples l r samples).
   Definition addSample_spec := unfolded_eq (addSample).
-  Global Opaque addSample.
-  Global Instance confined_addSample l r : Confined OUT_SOUND (addSample l r).
+  #[global] Opaque addSample.
+  #[global] Instance confined_addSample l r : Confined OUT_SOUND (addSample l r).
   Proof. rewrite addSample_spec. typeclasses eauto. Qed.
 
   Definition setPixel (x y: N) (c: OutputColor) : M unit :=
@@ -1053,8 +1053,8 @@ Module Core (MP: MachineParameters).
     assume (y < height img);;
     put' OUT_IMAGE (updatePixel x y (Some c) img).
   Definition setPixel_spec := unfolded_eq (setPixel).
-  Global Opaque setPixel.
-  Global Instance confined_setPixel x y c : Confined OUT_IMAGE (setPixel x y c).
+  #[global] Opaque setPixel.
+  #[global] Instance confined_setPixel x y c : Confined OUT_IMAGE (setPixel x y c).
   Proof. rewrite setPixel_spec. typeclasses eauto. Qed.
 
 
@@ -1072,10 +1072,10 @@ Module Core (MP: MachineParameters).
       |}.
   Definition extractImage_spec := unfolded_eq (extractImage).
 
-  Global Instance extractImage_confined img : Confined fstMixer (extractImage img).
+  #[global] Instance extractImage_confined img : Confined fstMixer (extractImage img).
   Proof. typeclasses eauto. Qed.
 
-  Global Opaque extractImage.
+  #[global] Opaque extractImage.
 
   Definition newFrame (w r h: N) : M unit :=
     let* bytes := get' OUT_BYTES in
@@ -1105,14 +1105,14 @@ Module Core (MP: MachineParameters).
          |}.
   Definition newFrame_spec := unfolded_eq (newFrame).
 
-  Global Instance confined_newFrame w r h :
+  #[global] Instance confined_newFrame w r h :
     Confined (OUT_IMAGE * OUT_BYTES * OUT_CHARS * OUT_SOUND * LOG)
              (newFrame w r h).
   Proof.
     typeclasses eauto.
   Qed.
 
-  Global Opaque newFrame.
+  #[global] Opaque newFrame.
 
   (****************************)
 
@@ -1172,7 +1172,7 @@ Module Core (MP: MachineParameters).
           apply H. lia.
   Qed.
 
-  Global Instance nAvailable_decidable n a : Decidable (nAvailable n a).
+  #[global] Instance nAvailable_decidable n a : Decidable (nAvailable n a).
   Proof.
     apply (decidable_transfer (nAvailable_spec n a)).
   Qed.
@@ -1204,7 +1204,7 @@ Module Core (MP: MachineParameters).
       exact Hx.
   Qed.
 
-  Global Instance nAfter_disjoint_decidable u n a : Decidable (u # nAfter n a).
+  #[global] Instance nAfter_disjoint_decidable u n a : Decidable (u # nAfter n a).
   Proof.
     refine (decidable_transfer (nAfter_disjoint_spec _ _ _)).
   Defined.
@@ -1527,6 +1527,8 @@ Module Core (MP: MachineParameters).
 
   (***)
 
+  #[local] Opaque Z.add. (* TODO*)
+
   Lemma storeMany_spec_toMem a {n} (u: Cells n) :
     storeMany a (to_list u) =
       assume' (nAvailable n a);;
@@ -1553,7 +1555,6 @@ Module Core (MP: MachineParameters).
         repeat rewrite put_spec.
         smon_rewrite.
         apply bind_extensional'; [ reflexivity | intros s ].
-        Opaque Z.add. (* TODO*)
         cbn.
         unfold compose.
         rewrite update_update.
@@ -1612,6 +1613,6 @@ Module Core (MP: MachineParameters).
 End Core.
 
 
-(** ** Repeat definition that were lost when then section ended. *)
+(** ** Repeat definition(s) lost when then section ended. *)
 
-Global Ltac simp_loadMany := rewrite_strat (outermost (hints loadMany)).
+#[global] Ltac simp_loadMany := rewrite_strat (outermost (hints loadMany)).
