@@ -350,7 +350,7 @@ Close Scope N.
 
 (** ** Monotone steps *)
 
-Global Instance oneStep_propr : PropR oneStep.
+#[global] Instance oneStep_propr : PropR oneStep.
 Proof.
   unfold oneStep. crush.
   destruct (y: Z) eqn:Hy;
@@ -369,7 +369,7 @@ Proof.
     crush.
 Qed.
 
-Global Instance nSteps_propr n : PropR (nSteps n).
+#[global] Instance nSteps_propr n : PropR (nSteps n).
 Proof.
   induction n; simp nSteps; unfold chain; crush.
   destruct y; crush.

@@ -10,9 +10,6 @@ Open Scope vector.
 (* TODO: Place inside section or module. *)
 Import OpCodes.
 
-(* TODO: Move? *)
-Global Opaque next.
-
 Open Scope Z.
 
 
@@ -916,10 +913,6 @@ Qed.
 
 (***********)
 
-(* TODO: Move *)
-#[global]
-Hint Mode Proper ! ! - : typeclass_instances.
-
 Lemma wipe_swallow_reordering'
     u {n} (ops: vector Z n) pc (Hdis: u # nAfter n pc) :
   put' PC pc;;
@@ -936,24 +929,14 @@ Proof.
   unshelve eapply (confined_neutral (m':= MEM' (nAfter n pc) * PC ));
     try typeclasses eauto.
 
-  (* apply independent_forward. *)
-
-  (* #[local]
-  Hint Mode Proper ! - - : typeclass_instances.
-
-  Set Typeclasses Debug.
-  apply independent_symmetric'. *)
-
-  (* Hint Mode composite_independent_l ! ! ! ! ! ! ! !. : typeclass_instances. *)
-
+  apply independent_backward.
   setoid_rewrite prodLens_prodMixer.
+  apply independent_prod; [ | typeclasses eauto ].
 
-  apply independent_prod.
-  - apply disjoint_independent'.
-    apply disjoint_symmetric. (* TODO: make global? *)
-    exact Hdis.
-  - apply independent_symmetric.
-    typeclasses eauto.
+  (* TODO: Why doesn't 'typeclasses eauto' solve this as well? *)
+  now apply independent_backward,
+            composite_independent_r,
+            separate_independent.
 Qed.
 
 Corollary wipe_swallow_reordering u {n} (ops: vector Z n) :
@@ -1111,6 +1094,14 @@ Qed.
 (* TODO: Duplicate *)
 Ltac simplify_assume := setoid_rewrite simplify_assume.
 
+Require Import Coq.Classes.Morphisms_Prop.
+
+(* TODO: Why is this needed? *)
+Instance not_proper_impl : Proper (iff ==> impl) not.
+Proof.
+  intros p p' Hp H. tauto.
+Qed.
+
 Proposition wipe_swallow_precondition u {n} (ops: vector Z n) :
   wipe u;;
   swallow ops = let* pc := get' PC in
@@ -1155,6 +1146,7 @@ Proof.
   {
     smon_rewrite.
     setoid_rewrite disjoint_nAfter_nonempty in Hd'.
+
     assert (offset n pc ∈ u) as Hn; [ apply decidable_raa; intuition idtac | ].
 
     setoid_rewrite <- bind_assoc at 2.

@@ -23,7 +23,7 @@ Section basics_section.
 
   Context {X: Type}.
 
-  Global Instance prop_relation : Rel Prop := fun _ _ => True.
+  #[global] Instance prop_relation : Rel Prop := fun _ _ => True.
 
   Instance true_relation : Rel X | 30 := fun _ _ => True.
 
@@ -33,14 +33,14 @@ Section basics_section.
   Qed.
 
   (* Fallback to Leibniz' equality. *)
-  Global Instance eq_relation : Rel X | 20 := eq.
+  #[global] Instance eq_relation : Rel X | 20 := eq.
 
   (* Is this useful? *)
-  Global Instance eq_Rel_equivalence : Equivalence eq_relation := eq_equivalence.
+  #[global] Instance eq_Rel_equivalence : Equivalence eq_relation := eq_equivalence.
 
   Context (RX: Rel X).
 
-  Global Instance option_relation : Rel (option X) | 5 :=
+  #[global] Instance option_relation : Rel (option X) | 5 :=
     fun x x' =>
       match x, x' with
       | None, _ => True
@@ -48,12 +48,12 @@ Section basics_section.
       | Some x, Some x' => x ⊑ x'
       end.
 
-  Global Instance option_relation_reflexive {HrX: Reflexive RX} : Reflexive option_relation.
+  #[global] Instance option_relation_reflexive {HrX: Reflexive RX} : Reflexive option_relation.
   Proof.
     unfold option_relation. intros [x|]; reflexivity.
   Qed.
 
-  Global Instance option_relation_transitive {HtX: Transitive RX} : Transitive option_relation.
+  #[global] Instance option_relation_transitive {HtX: Transitive RX} : Transitive option_relation.
   Proof.
     intros [x|] [y|] [z|] Hxy Hyz; cbn in *; try assumption.
     - transitivity y; assumption.
@@ -62,10 +62,10 @@ Section basics_section.
 
   Context {Y} (RY: Rel Y).
 
-  Global Instance fun_relation : Rel (X -> Y) | 10 :=
+  #[global] Instance fun_relation : Rel (X -> Y) | 10 :=
     fun f f' => forall (x x': X), x ⊑ x' -> f x ⊑ f' x'.
 
-  Global Instance fun_relation_transitive
+  #[global] Instance fun_relation_transitive
          {HrX: Reflexive RX}
          {HtX: Transitive RX}
          {HtY: Transitive RY} : Transitive fun_relation.
@@ -76,23 +76,23 @@ Section basics_section.
     - apply Hgh. reflexivity.
   Qed.
 
-  Global Instance prod_relation : Rel (X * Y) | 5 :=
+  #[global] Instance prod_relation : Rel (X * Y) | 5 :=
     fun p p' =>
       match p, p' with
       | (x, y), (x', y') => x ⊑ x' /\ y ⊑ y'
       end.
 
-  Global Instance prod_relation_reflexive {HrX: Reflexive RX} {HrY: Reflexive RY} : Reflexive prod_relation.
+  #[global] Instance prod_relation_reflexive {HrX: Reflexive RX} {HrY: Reflexive RY} : Reflexive prod_relation.
   Proof.
     intros [x y]. cbn. split; reflexivity.
   Qed.
 
-  Global Instance prod_relation_symmetric {HsX: Symmetric RX} {HsY: Symmetric RY} : Symmetric prod_relation.
+  #[global] Instance prod_relation_symmetric {HsX: Symmetric RX} {HsY: Symmetric RY} : Symmetric prod_relation.
   Proof.
     intros [x y] [x1 y1] [Hx Hy]. split; symmetry; assumption.
   Qed.
 
-  Global Instance prod_relation_transitive {HtX: Transitive RX} {HtY: Transitive RY} : Transitive prod_relation.
+  #[global] Instance prod_relation_transitive {HtX: Transitive RX} {HtY: Transitive RY} : Transitive prod_relation.
   Proof.
     intros [x1 y1] [x2 y2] [x3 y3] [Hx12 Hy12] [Hx23 Hy23].
     split.
@@ -132,12 +132,12 @@ Section lens_section.
 
   Definition lens_relation : relation S := fun s s' => proj s ⊑ proj s'.
 
-  Global Instance lens_relation_reflexive {HrX: Reflexive RX} : Reflexive lens_relation.
+  #[global] Instance lens_relation_reflexive {HrX: Reflexive RX} : Reflexive lens_relation.
   Proof.
     unfold lens_relation. intros s. reflexivity.
   Qed.
 
-  Global Instance lens_relation_symmetric {HsX: Symmetric RX} : Symmetric lens_relation.
+  #[global] Instance lens_relation_symmetric {HsX: Symmetric RX} : Symmetric lens_relation.
   Proof.
     unfold lens_relation. intros s s' H.
     symmetry; assumption.
@@ -145,7 +145,7 @@ Section lens_section.
 
   Hint Mode Lens - - : typeclass_instances.
 
-  Global Instance lens_relation_transitive {HtX: Transitive RX} : Transitive lens_relation.
+  #[global] Instance lens_relation_transitive {HtX: Transitive RX} : Transitive lens_relation.
   Proof.
     unfold lens_relation. intros s1 s2 s3 H12 H23.
     transitivity (proj s2); assumption.

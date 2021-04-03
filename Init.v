@@ -642,3 +642,6 @@ Qed.
 
 (** Defines [∘] *)
 Open Scope program_scope.
+
+#[global] Hint Mode Proper ! ! - : typeclass_instances.
+#[global] Hint Mode Proper ! - ! : typeclass_instances.

@@ -562,6 +562,8 @@ Module Core (MP: MachineParameters).
       reflexivity.
   Qed.
 
+  #[global] Opaque next.
+
   #[global] Instance confined_next n : Confined (MEM * PC) (next n).
   Proof.
     rewrite next_spec.

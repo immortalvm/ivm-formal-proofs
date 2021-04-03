@@ -5,9 +5,9 @@ Unset Suggest Proof Using.
 
 Module Type MachineParametersX.
   Parameter Inline MP1: MachineParams1.
-  Global Existing Instance MP1.
+  #[global] Existing Instance MP1.
   Parameter Inline MP2: MachineParams2.
-  Global Existing Instance MP2.
+  #[global] Existing Instance MP2.
 End MachineParametersX.
 
 Module CoreRel (MPX: MachineParametersX).

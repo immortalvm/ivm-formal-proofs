@@ -21,7 +21,7 @@ Coercion bitsToN : Bits >-> N.
 (** Now we have coercions [Bytes >-> Bits >-> N >-> Z]
     and also [nat >-> Z] and [option >-> bool >-> Prop]. *)
 
-(* Global parameters! *)
+(* #[global] parameters! *)
 Context
   (available': B64 -> bool)
   (allInputImages' : list (Image B8)).
@@ -60,9 +60,9 @@ Module ConcreteCore := Core concreteParameters.
 Export ConcreteCore.
 
 (* Why is this needed? *)
-Global Opaque loadMany.
-Global Opaque load.
-Global Opaque popMany.
+#[global] Opaque loadMany.
+#[global] Opaque load.
+#[global] Opaque popMany.
 
 (* TODO: Is there a more elegant way to achieve this? *)
 Definition cells_to_bytes {n} : Cells n -> Bytes n := id.
@@ -350,10 +350,9 @@ Section machine_section.
       let* u := popMany (n * 8) in
       ret (bytesToLongs u).
   Proof.
-    induction n.
+    induction n; simp popN.
     - simp popMany. smon_rewrite.
-    - simp popN.
-      change (S n * 8)%nat with (S (S (S (S (S (S (S (S (n * 8)))))))))%nat.
+    - change (S n * 8)%nat with (S (S (S (S (S (S (S (S (n * 8)))))))))%nat.
       setoid_rewrite IHn.
       unfold pop64.
       simp popMany.
@@ -373,7 +372,7 @@ Section machine_section.
   Qed.
 
   (* TODO: Safe as global instance? *)
-  Global Instance mem_point_sub {a u} (Ha: a ∈ u) :
+  #[global] Instance mem_point_sub {a u} (Ha: a ∈ u) :
     (MEM'' a | MEM' u).
   Proof.
     unfold MEM', MEM''.
