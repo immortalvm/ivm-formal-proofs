@@ -83,7 +83,7 @@ Section basics_section.
 
   Context {S M} {SM: SMonad S M}.
 
-  Global Instance bind_proper {X Y}:
+  #[global] Instance bind_proper {X Y}:
     Proper ( eq ==> pointwise_relation X eq ==> eq ) (@bind S M SM X Y).
   Proof.
     intros mx mx' Hmx f f' Hf. destruct Hmx.
@@ -267,7 +267,7 @@ Section lensmonad_section.
 
   Definition get' : M A := get.
   Definition get_spec := unfolded_eq (@get').
-  Global Opaque get'.
+  #[global] Opaque get'.
 
   Definition put' : A -> M unit := put.
   Definition put_spec := unfolded_eq (@put').
@@ -275,7 +275,7 @@ Section lensmonad_section.
   [setoid_rewrite]. *)
   Proposition put_spec' (a: A) : put' a = put a.
   Proof. reflexivity. Qed.
-  Global Opaque put'.
+  #[global] Opaque put'.
 
   (** The definitions above are arguably too strict since they mean that
   the machine cannot have additional state such as logging. One might
@@ -366,7 +366,7 @@ Section mixer_section.
     smon_rewrite.
   Qed.
 
-  Global Opaque putM.
+  #[global] Opaque putM.
 
 End mixer_section.
 
@@ -448,14 +448,14 @@ Section neutral_section.
           {SM: SMonad S M}
           (m: Mixer S).
 
-  Global Instance neutral_if (b: bool) {X} (mx mx': M X)
+  #[global] Instance neutral_if (b: bool) {X} (mx mx': M X)
          {Hmx: Neutral mx}
          {Hmx': Neutral mx'} : Neutral (if b then mx else mx').
   Proof.
     destruct b; assumption.
   Qed.
 
-  Global Instance neutral_option
+  #[global] Instance neutral_option
          {X} (ox: option X) {Y}
          (f: X -> M Y) {Hf: forall x, Neutral (f x)}
          (my: M Y) {Hmy: Neutral my} :
@@ -467,7 +467,7 @@ Section neutral_section.
     destruct ox; [apply Hf | apply Hmy].
   Qed.
 
-  Global Instance neutral_sumbool
+  #[global] Instance neutral_sumbool
          {P Q} (pq: {P} + {Q}) {X}
          (f: P -> M X) {Hf: forall p, Neutral (f p)}
          (g: Q -> M X) {Hg: forall q, Neutral (g q)} :
@@ -481,12 +481,12 @@ Section neutral_section.
 
   Hint Mode SMonad - - : typeclass_instances.
 
-  Global Instance neutral_ret {X} (x: X) : Neutral (ret x).
+  #[global] Instance neutral_ret {X} (x: X) : Neutral (ret x).
   Proof.
     intros aa. rewrite putM_spec. smon_rewrite.
   Qed.
 
-  Global Instance neutral_bind
+  #[global] Instance neutral_bind
          {X Y} (mx: M X) (f: X -> M Y)
          {Hmx: Neutral mx}
          {Hf: forall x, Neutral (f x)} : Neutral (mx >>= f).
@@ -497,7 +497,7 @@ Section neutral_section.
     rewrite putM_spec. smon_rewrite.
   Qed.
 
-  Global Instance neutral_err {X} : Neutral (err : M X).
+  #[global] Instance neutral_err {X} : Neutral (err : M X).
   Proof.
     intros aa. smon_rewrite.
   Qed.
@@ -505,14 +505,14 @@ Section neutral_section.
 
   (** *** Confined **)
 
-  Global Instance confined_if (b: bool) {X} (mx mx': M X)
+  #[global] Instance confined_if (b: bool) {X} (mx mx': M X)
          {Hmx: Confined mx}
          {Hmx': Confined mx'} : Confined (if b then mx else mx').
   Proof.
     destruct b; assumption.
   Qed.
 
-  Global Instance confined_option
+  #[global] Instance confined_option
          {X} (ox: option X) {Y}
          (f: X -> M Y) {Hf: forall x, Confined (f x)}
          (my: M Y) {Hmy: Confined my} :
@@ -524,7 +524,7 @@ Section neutral_section.
     destruct ox; [apply Hf | apply Hmy].
   Qed.
 
-  Global Instance confined_sumbool
+  #[global] Instance confined_sumbool
          {P Q} (pq: {P} + {Q}) {X}
          (f: P -> M X) {Hf: forall p, Confined (f p)}
          (g: Q -> M X) {Hg: forall q, Confined (g q)} :
@@ -536,12 +536,12 @@ Section neutral_section.
     destruct pq; [apply Hf | apply Hg].
   Qed.
 
-  Global Instance confined_ret {X} (x: X) : Confined (ret x).
+  #[global] Instance confined_ret {X} (x: X) : Confined (ret x).
   Proof.
     unfold Confined. intros. smon_rewrite.
   Qed.
 
-  Global Instance confined_bind
+  #[global] Instance confined_bind
          {X Y} {mx: M X} {f: X -> M Y}
          {Hmx: Confined mx}
          {Hf: forall x, Confined (f x)} : Confined (mx >>= f).
@@ -556,12 +556,12 @@ Section neutral_section.
     - exact Hmc.
   Qed.
 
-  Global Instance confined_err {X} : Confined (err : M X).
+  #[global] Instance confined_err {X} : Confined (err : M X).
   Proof.
     unfold Confined. intros. smon_rewrite.
   Qed.
 
-  Global Instance confined_putM s : Confined (putM m s).
+  #[global] Instance confined_putM s : Confined (putM m s).
   Proof.
     unfold Confined. intros. smon_rewrite.
     setoid_rewrite (Hmy s). rewrite putM_spec.
@@ -598,7 +598,7 @@ Section lens_section.
       smon_rewrite. cbn. lens_rewrite.
   Qed.
 
-  Global Instance confined_get : Confined La get'.
+  #[global] Instance confined_get : Confined La get'.
   Proof.
     unfold Confined. intros. smon_ext s.
     rewrite lensNeutral in Hmy.
@@ -606,7 +606,7 @@ Section lens_section.
     smon_rewrite.
   Qed.
 
-  Global Instance confined_put a : Confined La (put' a).
+  #[global] Instance confined_put a : Confined La (put' a).
   Proof.
     unfold Confined. intros. smon_ext s.
     rewrite lensNeutral in Hmy.
@@ -633,7 +633,7 @@ Section sublens_section.
     cbn. smon_rewrite.
   Qed.
 
-  Global Instance lens_get_proper {A} :
+  #[global] Instance lens_get_proper {A} :
     Proper (@lensEq S A ==> eq) get'.
   Proof.
     intros La La' Hla.
@@ -642,7 +642,7 @@ Section sublens_section.
     reflexivity.
   Qed.
 
-  Global Instance lens_put_proper {A} :
+  #[global] Instance lens_put_proper {A} :
     Proper (@lensEq S A ==> eq ==> eq) put'.
   Proof.
     intros La La' Hla
@@ -656,7 +656,7 @@ Section sublens_section.
 
   (** *** Neutral *)
 
-  Global Instance neutral_proper_sub {X} :
+  #[global] Instance neutral_proper_sub {X} :
     Proper (@Submixer S ==> @eq (M X) ==> flip impl) Neutral | 15.
   Proof.
     intros m m' Hm
@@ -667,7 +667,7 @@ Section sublens_section.
     smon_rewrite.
   Qed.
 
-  Global Instance neutral_proper {X} :
+  #[global] Instance neutral_proper {X} :
     Proper (@mixerEq S ==> @eq (M X) ==> iff) Neutral | 15.
   Proof.
     intros m m' Hm
@@ -681,7 +681,7 @@ Section sublens_section.
   Qed.
 
   (* TODO: Useful? *)
-  Global Instance neutral_proper' {A X} :
+  #[global] Instance neutral_proper' {A X} :
     Proper (@lensEq S A ==> @eq (M X) ==> iff) Neutral | 15.
   Proof.
     intros La La' Hla
@@ -702,7 +702,7 @@ Section sublens_section.
 
   (** *** Confined *)
 
-  Global Instance confined_proper_sub {X} :
+  #[global] Instance confined_proper_sub {X} :
     Proper (@Submixer S ==> @eq (M X) ==> impl) Confined | 15.
   Proof.
     intros m m' Hm
@@ -716,7 +716,7 @@ Section sublens_section.
     - apply Hc. exact H.
   Qed.
 
-  Global Instance Confined_proper2 {X}:
+  #[global] Instance Confined_proper2 {X}:
     Proper (@mixerEq S ==> @eq (M X) ==> iff) Confined | 15.
   Proof.
     set (Hsub := @eq_submixer_subrelation).
@@ -730,14 +730,14 @@ Section sublens_section.
 
   (** *** Corollaries *)
 
-  Global Instance neutral_sub
+  #[global] Instance neutral_sub
            {X} {mx: M X} {g: Mixer S} (Hmx: Neutral g mx)
-           (f: Mixer S) {Hs: (f | g)}: Neutral f mx.
+           (f: Mixer S) {Hs: (f | g)} : Neutral f mx.
   Proof.
     rewrite Hs. exact Hmx.
   Qed.
 
-  Global Instance confined_sub
+  #[global] Instance confined_sub
            {X} {mx: M X} {f: Mixer S} (Hmx: Confined f mx)
            (g: Mixer S) {Hs: (f | g)} : Confined g mx.
   Proof.
@@ -824,12 +824,12 @@ Section independence_section2.
           {B} (Lb: Lens S B)
           {Hi: Independent La Lb}.
 
-  Global Instance neutral_get : Neutral La (get' Lb).
+  #[global] Instance neutral_get : Neutral La (get' Lb).
   Proof.
     apply lensNeutral. intros aa. smon_rewrite.
   Qed.
 
-  Global Instance neutral_put b : Neutral La (put' Lb b).
+  #[global] Instance neutral_put b : Neutral La (put' Lb b).
   Proof.
     apply lensNeutral. intros aa. smon_rewrite.
   Qed.
@@ -846,7 +846,7 @@ Section independence_section3.
           {m m': Mixer S}
           {Hm: Independent' m m'}.
 
-  Global Instance neutral_putM s : Neutral m' (putM m s).
+  #[global] Instance neutral_putM s : Neutral m' (putM m s).
   Proof.
     intros t.
     rewrite putM_spec.
@@ -855,7 +855,7 @@ Section independence_section3.
     mixer_rewrite.
   Qed.
 
-  Global Instance confined_neutral
+  #[global] Instance confined_neutral
          {X} (mx: M X) {Hmx: Confined m' mx} : Neutral m mx.
   Proof.
     set (keeper := let* s0 := get in
