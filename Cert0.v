@@ -35,27 +35,6 @@ Proof.
     lia.
 Qed.
 
-(* TODO: Useful? *)
-Proposition generalizer
-      {MP1 : MachineParams1}
-      {MP2 : MachineParams2}
-      {X Y: Type}
-      {mx: M X}
-      {f: X -> M Y}
-      {my: M Y}
-      (H : mx >>= f = my)
-      {Z: Type}
-      (g: Y -> M Z) : let* x := mx in
-                     let* y := f x in
-                     g y = let* y := my in
-                           g y.
-Proof.
-  rewrite <- bind_assoc.
-  rewrite H.
-  reflexivity.
-Qed.
-
-
 Proposition shiftin_spec [X n] [x: X] [u: vector X n] (H: (n + 1 = S n)%nat) :
   shiftin x u = rew H in (u ++ [x]).
 Proof.
