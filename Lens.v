@@ -285,7 +285,7 @@ Section category_facts_section.
 
   #[global] Instance composite_independent_r
            (Ly: Lens X Y) {Y'} (Ly': Lens X Y')
-           {Hi: Independent Ly Ly'} : Independent (Ly ∘ Lx) (Ly' ∘ Lx).
+           {Hi: Independent Ly Ly'} : Independent (Ly ∘ Lx) (Ly' ∘ Lx) | 20.
   Proof.
     intros a y y'. cbn. lens_rewrite.
   Qed.
@@ -293,7 +293,7 @@ Section category_facts_section.
   Context (Ly: Lens A Y) {Hi: Independent' Lx Ly}
           {Z} (Lz: Lens X Z).
 
-  #[global] Instance composite_independent_l : Independent (Lz ∘ Lx) Ly.
+  #[global] Instance composite_independent_l : Independent (Lz ∘ Lx) Ly | 20.
   Proof.
     intros a z y. cbn.
     apply independent' in Hi.

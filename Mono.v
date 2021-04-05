@@ -275,7 +275,7 @@ Proof.
 Qed.
 
 Instance pushMany_propr u : PropR (pushMany u).
-Proof. crush. Qed.
+Proof. rewrite pushMany_spec. crush. Qed.
 
 Instance pop_propr : PropR pop.
 Proof.

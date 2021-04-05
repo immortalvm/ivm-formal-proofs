@@ -905,6 +905,18 @@ Module Core (MP: MachineParameters).
   (** Stores the elements correct order. *)
   Definition pushMany u := pushManyR (rev u).
 
+  Definition pushMany_spec := unfolded_eq (pushMany).
+
+  Proposition pushMany_empty : pushMany [] = ret tt.
+  Proof.
+    reflexivity.
+  Qed.
+
+  Proposition pushMany_one x : pushMany [x] = push x.
+  Proof.
+    cbn. smon_rewrite.
+  Qed.
+
   Corollary pushMany_action u v : pushMany (u ++ v) = pushMany v;; pushMany u.
   Proof.
     unfold pushMany.
@@ -976,6 +988,8 @@ Module Core (MP: MachineParameters).
           simpl length.
           lia.
   Qed.
+
+  #[global] Opaque pushMany.
 
   Close Scope Z. (* Back to N for the rest of this file. *)
 

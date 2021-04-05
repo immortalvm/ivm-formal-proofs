@@ -11,8 +11,6 @@ Local Notation terminated := (ret false) (only parsing).
 
 (*****************)
 
-#[global] Opaque pushMany. (* TODO *)
-
 (* TODO: Move *)
 Instance swallow_propr {n} (ops: vector Z n) : PropR (swallow ops).
 Proof.
@@ -390,22 +388,6 @@ Proof. (* TODO: Simplify proof *)
 Qed.
 
 (***********)
-
-Transparent pushMany.
-
-(* TODO: Move to Operations.v. *)
-Proposition pushMany_empty : pushMany [] = ret tt.
-Proof.
-  unfold pushMany.
-  reflexivity.
-Qed.
-
-Proposition pushMany_one x : pushMany [x] = push x.
-Proof.
-  cbn. smon_rewrite.
-Qed.
-
-Opaque pushMany.
 
 Proposition postpone_assume'' P {DP: Decidable P} (mx: M unit) :
   assume' P;; mx = mx;; assume' P.
