@@ -108,6 +108,17 @@ Section cong_section.
     f_equal. f_equal; assumption.
   Qed.
 
+  Corollary cong_eq x y : cong x y <-> cong (x - y) 0.
+  Proof.
+    split; intros H.
+    - transitivity (x + (-y)).
+      + apply eq_cong. lia.
+      + setoid_rewrite H. apply eq_cong. lia.
+    - transitivity ((x - y) + y).
+      + apply eq_cong. lia.
+      + setoid_rewrite H.  apply eq_cong. lia.
+  Qed.
+
   #[global] Instance cong_mul_proper : Proper (cong ==> cong ==> cong) Z.mul.
   Proof.
     intros x x' Hx y y' Hy. unfold cong, irel in *.
@@ -130,6 +141,13 @@ Section cong_section.
     - apply pow2_pos.
     - apply Z.mul_pos_pos; apply pow2_pos.
     - auto with zarith.
+  Qed.
+
+  Corollary cong_zero k : cong (k * 2^n) 0.
+  Proof.
+    transitivity ((k * 2^n) mod 2^n).
+    - symmetry. apply cong_mod. lia.
+    - apply eq_cong. apply Z_mod_mult.
   Qed.
 
 End cong_section.
@@ -664,6 +682,16 @@ Proof.
   apply (f_equal (toBits n)) in H.
   setoid_rewrite toBits_ofN_bitsToN in H.
   exact H.
+Qed.
+
+Proposition bitsToN_bound {n} (u: Bits n) : (bitsToN u < 2 ^ n)%N.
+Proof.
+  assert ((2^n)%N = 2^n :> Z) as H; [ now rewrite N2Z.inj_pow | ].
+  unfold bitsToN, fromBits.
+  apply N2Z.inj_lt.
+  rewrite N2Z.inj_pow.
+  destruct (join_zero u) as [H0 H64].
+  lia.
 Qed.
 
 

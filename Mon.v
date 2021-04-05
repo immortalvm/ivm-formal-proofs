@@ -109,6 +109,25 @@ Section basics_section.
     setoid_rewrite <- bind_unit. apply bind_ret.
   Qed.
 
+  Proposition collapse_bind_lift
+              {X} {mx: M X} {Y} {f: X -> M Y} {my: M Y}
+              (H: mx >>= f = my)
+              {Z} (g: Y -> M Z) :
+      let* x := mx in
+      let* y := f x in
+      g y =
+        let* y := my in
+        g y.
+  Proof.
+    transitivity (
+      let* yy := (
+        let* x := mx in
+        f x) in
+      g yy).
+    - smon_rewrite. (* TODO *)
+    - now setoid_rewrite H.
+  Qed.
+
   Proposition put_put' s s' Y (f: unit -> unit -> M Y) :
     let* x := put s in
     let* y := put s' in
@@ -926,11 +945,11 @@ Section assumption_section.
     apply H.
   Qed.
 
-  Proposition postpone_assume P {DP: Decidable P} {X} (mx: M X) {Y} (f: X -> M Y) :
-    assume P;;
+  Proposition postpone_assume' P {DP: Decidable P} {X} (mx: M X) {Y} (f: X -> M Y) :
+    assume' P;;
     let* x := mx in
     f x = let* x := mx in
-          assume P;;
+          assume' P;;
           f x.
   Proof.
     destruct (decide P) as [H|H]; smon_rewrite.
@@ -989,3 +1008,56 @@ Section assumption_section.
   Qed.
 
 End assumption_section.
+
+Section SemiNeutral_section.
+
+  Context {S M} {SM: SMonad S M}.
+
+  Class SemiNeutral {X} (m: Mixer S) (mx: M X) : Prop :=
+    neutral : mx =  let* s := get in
+                    let* x := mx in
+                    putM m s;;
+                    ret x.
+
+  #[global] Instance sub_semiNeutral
+          {X} {m: Mixer S} {mx: M X}
+          (Hmx: SemiNeutral m mx)
+          (m': Mixer S) {Hm: (m'|m)} : SemiNeutral m' mx.
+  Proof.
+    unfold SemiNeutral in *.
+    setoid_rewrite Hmx.
+    rewrite putM_spec.
+    smon_rewrite.
+  Qed.
+
+  Context {X A} (LA: Lens S A) (mx: M X)
+          {Hmx: SemiNeutral LA mx}
+          {Y} (f: X -> M Y).
+
+  Proposition semiNeutral_get_put :
+    let* x := mx in
+    f x =
+      let* u := get' LA in
+      let* x := mx in
+      put' LA u;;
+      f x.
+  Proof.
+    rewrite Hmx at 1.
+    rewrite get_spec, put_spec, putM_spec.
+    smon_rewrite.
+  Qed.
+
+  Proposition semiNeutral_put_put a :
+    put' LA a;;
+    let* x := mx in
+    f x =
+      put' LA a;;
+      let* x := mx in
+      put' LA a;;
+      f x.
+  Proof.
+    setoid_rewrite semiNeutral_get_put at 1.
+    now setoid_rewrite lens_put_get.
+  Qed.
+
+End SemiNeutral_section.

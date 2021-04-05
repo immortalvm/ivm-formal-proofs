@@ -643,13 +643,7 @@ Module Core (MP: MachineParameters).
       smon_rewrite.
   Qed.
 
-  #[global] Instance confined_popMany n : Confined (MEM * SP) (popMany n).
-  Proof.
-    rewrite popMany_spec.
-    typeclasses eauto.
-  Qed.
-
-  #[global] Instance confined_popMany' sp n :
+  #[global] Instance confined_popMany sp n :
     Confined (MEM' (nAfter n sp) * SP) (put' SP sp;;
                                         popMany n).
   Proof.
@@ -1224,7 +1218,7 @@ Module Core (MP: MachineParameters).
   Proof.
     refine (decidable_transfer (nAfter_disjoint_spec _ _ _)).
   Defined.
-  
+
   Proposition not_nAfter_disjoint_spec u n a :
     not (u # nAfter n a) -> exists i, (i<n)%nat /\ offset i a ∈ u.
   Proof.
@@ -1234,7 +1228,7 @@ Module Core (MP: MachineParameters).
     - setoid_rewrite decidable_raa in H. exact H.
     - typeclasses eauto.
   Qed.
-  
+
   Definition not_nAfter_disjoint_evidence u n a (H : not (u # nAfter n a)) :
     { x: Addr | x ∈ u /\ exists i, (i < n)%nat /\ offset i a = x }.
   Proof.

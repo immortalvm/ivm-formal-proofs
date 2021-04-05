@@ -125,15 +125,9 @@ Instance is_true_decidable (x: bool) : Decidable (x) :=
   then left true_is_true
   else right false_is_false.
 
-Proposition asBool_decide P {DP: Decidable P} : as_bool (decide P) <-> P.
+Proposition asBool_decide P {DP: Decidable P} : Is_true (as_bool (decide P)) <-> P.
 Proof.
-  destruct (decide P) as [H|H].
-  - split; intros _; [ exact H | exact I ].
-  - cbv.
-    split;
-      intros HH;
-      [ exfalso | apply H ];
-      exact HH.
+  destruct (decide P) as [H|H]; now cbn.
 Qed.
 
 (** Eliminate [decide P] when we already know [P]. *)
@@ -200,6 +194,18 @@ Proposition decide_true
   (if decide P then x else x') = x.
 Proof.
   decided H. reflexivity.
+Qed.
+
+Instance exists_true_decidable
+    (b: bool) (P: Is_true b -> Prop) {DP: forall Hb: b, Decidable (P Hb)} :
+    Decidable (exists Hb, P Hb).
+Proof.
+  destruct b.
+  - specialize (DP I).
+    destruct (decide (P I)) as [H|H].
+    + left. exists I. exact H.
+    + right. intros [Hb Hp]. destruct Hb. exact (H Hp).
+  - right. intros [Hb _]. exact Hb.
 Qed.
 
 Proposition eqdec_eqrefl {X} {HED: EqDec X} (x:X) : HED x x = left eq_refl.
@@ -566,6 +572,20 @@ Proof.
   - simp to_list. simpl length. rewrite IHv. reflexivity.
 Qed.
 
+Lemma to_list_action {X m n} (u: vector X m) (v: vector X n) :
+  to_list (u ++ v)%vector = ((to_list u) ++ (to_list v))%list.
+Proof.
+  induction m.
+  - now dependent elimination u.
+  - dependent elimination u as [Vector.cons(n:=m) x u].
+    simp to_list.
+    rewrite <- append_comm_cons.
+    setoid_rewrite to_list_equation_2. (* ! *)
+    rewrite IHm.
+    rewrite <- app_comm_cons.
+    reflexivity.
+Qed.
+
 (* Coercion Vector.to_list : vector >-> list. *)
 
 
@@ -631,12 +651,20 @@ Proof.
   now rewrite Nnat.Nat2N.inj_succ, N2Z.inj_succ.
 Qed.
 
-Proposition Nat2N_inj_lt (m n: nat): (m < n)%N <-> (m < n)%nat.
+Proposition Nat2N_inj_lt {m n: nat}: (m < n)%N <-> (m < n)%nat.
 Proof.
   setoid_rewrite N2Z.inj_lt.
   setoid_rewrite nat_N_Z.
   symmetry.
   apply Nat2Z.inj_lt.
+Qed.
+
+Corollary N2Nat_inj_lt {m n: N} :
+  (N.to_nat m < N.to_nat n)%nat <-> (m < n)%N.
+Proof.
+  setoid_rewrite <- Nnat.N2Nat.id at 3 4.
+  setoid_rewrite Nat2N_inj_lt.
+  reflexivity.
 Qed.
 
 
@@ -645,3 +673,9 @@ Open Scope program_scope.
 
 #[global] Hint Mode Proper ! ! - : typeclass_instances.
 #[global] Hint Mode Proper ! - ! : typeclass_instances.
+
+(* TODO: Why is this needed? *)
+Instance not_proper_impl : Proper (iff ==> impl) not.
+Proof.
+  intros p p' Hp H. tauto.
+Qed.

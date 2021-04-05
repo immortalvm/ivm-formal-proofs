@@ -353,6 +353,9 @@ Qed.
 Proposition submixer_fst {A} (f: Mixer A) : (fstMixer | f).
 Proof. mixer_rewrite'. Qed.
 
+Instance submixer_snd {A} (f: Mixer A) : (f | sndMixer).
+Proof. mixer_rewrite'. Qed.
+
 
 (** *** Propriety *)
 

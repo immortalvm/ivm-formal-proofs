@@ -173,7 +173,7 @@ Equations swallow {n} (ops: vector Z n) : M unit :=
 Lemma swallow_spec {n} (ops: vector Z n) :
   swallow ops = let* pc := get' PC in
                 let* u := loadMany n pc in
-                assume (u = Vector.map toB8 ops);;
+                assume' (u = Vector.map toB8 ops);;
                 put' PC (offset n pc).
 Proof.
   (* TODO: Simplify *)
@@ -192,7 +192,7 @@ Proof.
     apply bind_extensional. intros pc.
     apply bind_extensional. intros op.
 
-    do 3 setoid_rewrite postpone_assume.
+    do 3 setoid_rewrite postpone_assume'.
     smon_rewrite.
     setoid_rewrite <- confined_put;
       [ | apply (confined_neutral (m':=MEM));
@@ -233,6 +233,12 @@ Proof.
     rewrite (IHm o1).
     rewrite bind_assoc.
     reflexivity.
+Qed.
+
+Instance swallow_propr {n} (ops: vector Z n) : PropR (swallow ops).
+Proof.
+  rewrite swallow_spec.
+  crush.
 Qed.
 
 Proposition swallow1' (op: Z) n (ops: vector Z n) :
@@ -854,6 +860,7 @@ Qed.
 
 (** ** Mark memory as undefined *)
 Definition wipe (u: DSet Addr) : M unit :=
+  assume' (u ⊆ available);;
   put' (MEM' u) (fun _ _ _ => None).
 
 (* TODO: Remove *)
@@ -983,24 +990,6 @@ Proof.
   setoid_rewrite lens_put_get. apply H. exact Ha.
 Qed.
 
-(****)
-
-(* TODO: Remove *)
-Proposition rel_assume
-    {X} (mx: M X) {RX: Rel X} {Hmx: PropR mx}
-    (P: X -> Prop) {HP: forall x, Decidable (P x)}
-    {Y} (f: X -> M Y) {RY: Rel Y} (HRY: Reflexive RY) {Hf: PropR f} :
-  let* x := mx in
-  assume' (P x);;
-  f x ⊑
-    let* x := mx in
-    f x.
-Proof.
-  apply bind_propr'.
-  - exact Hmx.
-  - crush. apply Hf. exact Hxy.
-Qed.
-
 (*************************)
 
 Proposition load_mx a {X} {RX: Rel X} {mx mx': M X} (Hmx: mx ⊑ mx') :
@@ -1072,14 +1061,6 @@ Qed.
 
 (* TODO: Duplicate *)
 Ltac simplify_assume := setoid_rewrite simplify_assume.
-
-Require Import Coq.Classes.Morphisms_Prop.
-
-(* TODO: Why is this needed? *)
-Instance not_proper_impl : Proper (iff ==> impl) not.
-Proof.
-  intros p p' Hp H. tauto.
-Qed.
 
 Proposition wipe_swallow_precondition u {n} (ops: vector Z n) :
   wipe u;;

@@ -173,6 +173,13 @@ Section DSet_section.
     - right. apply Hv. exact H.
   Qed.
 
+  Proposition union_symmetric (u v: DSet) :
+    u ∪ v = v ∪ u.
+  Proof.
+    apply extensionality. intros x.
+    setoid_rewrite union_spec. tauto.
+  Qed.
+
   (* TODO: Prove more union facts here? *)
 
   Definition disjoint u v := forall x, not (x ∈ u /\ x ∈ v).

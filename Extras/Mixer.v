@@ -48,9 +48,6 @@ Proof.
   intros x y. reflexivity.
 Qed.
 
-Proposition submixer_snd {A} (f: Mixer A) : (f | sndMixer).
-Proof. mixer_rewrite'. Qed.
-
 Proposition independent_spec {A} (f g: Mixer A) :
   Independent f g <-> (f | oppMixer g).
 Proof.

@@ -11,15 +11,6 @@ Local Notation terminated := (ret false) (only parsing).
 
 (*****************)
 
-(* TODO: Move *)
-Instance swallow_propr {n} (ops: vector Z n) : PropR (swallow ops).
-Proof.
-  rewrite swallow_spec.
-  crush.
-Qed.
-
-(*************)
-
 Proposition nCert_monotone n {ma mb: M bool} (Hab: ma ⊑ mb) (Hb: nCert n mb) :
   nCert n ma.
 Proof.
@@ -102,31 +93,6 @@ Qed.
 
 (********)
 
-(* TODO: Move *)
-Proposition bitsToN_bound {n} (u: Bits n) : (bitsToN u < 2 ^ n)%N.
-Proof.
-  assert ((2^n)%N = 2^n :> Z) as H; [ now rewrite N2Z.inj_pow | ].
-  unfold bitsToN, fromBits.
-  apply N2Z.inj_lt.
-  rewrite N2Z.inj_pow.
-  destruct (join_zero u) as [H0 H64].
-  lia.
-Qed.
-
-(* TODO: Update definition in Init.v instead. *)
-Arguments Nat2N_inj_lt {_ _}.
-
-(* TODO: Move to after Nat2N_inj_lt *)
-Corollary N2Nat_inj_lt {m n: N} :
-  (N.to_nat m < N.to_nat n)%nat <-> (m < n)%N.
-Proof.
-  setoid_rewrite <- Nnat.N2Nat.id at 3 4.
-  setoid_rewrite Nat2N_inj_lt.
-  reflexivity.
-Qed.
-
-(***)
-
 (* Finitely enumerable, equivalent to Coq.Logic.FinFun.Finite. *)
 Class SFinite X : Type :=
 {
@@ -169,25 +135,6 @@ Qed.
 
 Definition isWiped (u: DSet Addr) (m: Memory) :=
   forall a (Hau: a ∈ u), exists (Ha: available a), m a Ha = None.
-
-(* TODO: Move to Init.v. *)
-Instance exists_true_decidable
-    (b: bool) (P: Is_true b -> Prop) {DP: forall Hb: b, Decidable (P Hb)} :
-    Decidable (exists Hb, P Hb).
-Proof.
-  destruct b.
-  - specialize (DP I).
-    destruct (decide (P I)) as [H|H].
-    + left. exists I. exact H.
-    + right. intros [Hb Hp]. destruct Hb. exact (H Hp).
-  - right. intros [Hb _]. exact Hb.
-Qed.
-
-(* Redundant *)
-Instance isWiped_decidable u m : Decidable (isWiped u m).
-Proof.
-  typeclasses eauto.
-Defined.
 
 (******************************)
 
@@ -268,17 +215,6 @@ Ltac rel_extensional_2 :=
 Arguments proj {_ _} _.
 Arguments update {_ _} _.
 
-(* TODO: Replace postpone_assume in Mon.v. *)
-Proposition postpone_assume' P {DP: Decidable P} {X} (mx: M X) {Y} (f: X -> M Y) :
-  assume' P;;
-  let* x := mx in
-  f x = let* x := mx in
-        assume' P;;
-        f x.
-Proof.
-  destruct (decide P) as [H|H]; smon_rewrite.
-Qed.
-
 Proposition assume_below_tt P {DP: Decidable P} :
   assume' P ⊑ ret tt.
 Proof.
@@ -306,30 +242,13 @@ Qed.
 
 (***)
 
-(* TODO: Replace definition of wipe instead. *)
-Definition wipe' u :=
-  assume' (u ⊆ available);;
-  wipe u.
-
 Definition wiped u :=
   let* mem := get' MEM in
   assume' (isWiped u mem).
 
 Definition wipeStack n :=
   let* a := get' SP in
-  wipe' (nBefore (n * 8) a).
-
-(***)
-
-(* TODO: Postpone *)
-Definition stdStart m n {o} (ops: vector Z o) : M (vector B64 n) :=
-  let* v := popN n in
-  wipeStack (m + n);;
-  swallow ops;;
-  ret v.
-
-(** By putting [swallow] after [wipeStack] we ensure that [stdStart] fails
-    if the operations overlap with (the relevant parts of) the stack. *)
+  wipe (nBefore (n * 8) a).
 
 (*********)
 
@@ -549,42 +468,6 @@ Proof.
   - simp popMany. now smon_rewrite01.
 Qed.
 
-(* TODO: move *)
-Lemma to_list_action {X m n} (u: vector X m) (v: vector X n) :
-  to_list (u ++ v)%vector = ((to_list u) ++ (to_list v))%list.
-Proof.
-  induction m.
-  - now dependent elimination u.
-  - dependent elimination u as [Vector.cons(n:=m) x u].
-    simp to_list.
-    rewrite <- append_comm_cons.
-    setoid_rewrite to_list_equation_2. (* ! *)
-    rewrite IHm.
-    rewrite <- app_comm_cons.
-    reflexivity.
-Qed.
-
-(* TODO: Move *)
-Proposition collapse_bind_lift
-            {S M} {SM: SMonad S M}
-            {X} {mx: M X} {Y} {f: X -> M Y} {my: M Y}
-            (H: mx >>= f = my)
-            {Z} (g: Y -> M Z) :
-    let* x := mx in
-    let* y := f x in
-    g y =
-      let* y := my in
-      g y.
-Proof.
-  transitivity (
-    let* yy := (
-      let* x := mx in
-      f x) in
-    g yy).
-  - smon_rewrite.
-  - now setoid_rewrite H.
-Qed.
-
 Proposition popMany_getSP n {X} (f: Cells n -> B64 -> M X) :
   let* u := popMany n in
   let* sp := get' SP in
@@ -611,74 +494,6 @@ Proof.
   typeclasses eauto.
 Qed.
 
-(* TODO: Replace weaker version in Operations.v. *)
-Instance confined_popMany' sp n :
-  Confined (MEM' (nAfter n sp) * SP)
-  (put' SP sp;; popMany n).
-Proof.
-  rewrite popMany_spec.
-  smon_rewrite.
-  typeclasses eauto.
-Qed.
-
-(* TODO: move to Mixer.v. Remove from Extras/Mixer.v. *)
-Instance submixer_snd {A} (f: Mixer A) : (f | sndMixer).
-Proof. mixer_rewrite'. Qed.
-
-(* TODO: move to Mon.v *)
-Section SemiNeutral_section.
-
-  Context {S M} {SM: SMonad S M}.
-
-  Class SemiNeutral {X} (m: Mixer S) (mx: M X) : Prop :=
-    neutral : mx =  let* s := get in
-                    let* x := mx in
-                    putM m s;;
-                    ret x.
-
-  #[global] Instance sub_semiNeutral
-          {X} {m: Mixer S} {mx: M X}
-          (Hmx: SemiNeutral m mx)
-          (m': Mixer S) {Hm: (m'|m)} : SemiNeutral m' mx.
-  Proof.
-    unfold SemiNeutral in *.
-    setoid_rewrite Hmx.
-    rewrite putM_spec.
-    smon_rewrite.
-  Qed.
-
-  Context {X A} (LA: Lens S A) (mx: M X)
-          {Hmx: SemiNeutral LA mx}
-          {Y} (f: X -> M Y).
-
-  Proposition semiNeutral_get_put :
-    let* x := mx in
-    f x =
-      let* u := get' LA in
-      let* x := mx in
-      put' LA u;;
-      f x.
-  Proof.
-    rewrite Hmx at 1.
-    rewrite get_spec, put_spec, putM_spec.
-    smon_rewrite.
-  Qed.
-
-  Proposition semiNeutral_put_put a :
-    put' LA a;;
-    let* x := mx in
-    f x =
-      put' LA a;;
-      let* x := mx in
-      put' LA a;;
-      f x.
-  Proof.
-    setoid_rewrite semiNeutral_get_put at 1.
-    now setoid_rewrite lens_put_get.
-  Qed.
-
-End SemiNeutral_section.
-
 #[global] Instance semiNeutral_defined a : SemiNeutral sndMixer (defined a).
 Proof.
   rewrite defined_spec.
@@ -689,13 +504,6 @@ Proof.
     destruct (decide (proj MEM s a Ha)) as [H|H];
     smon_rewrite.
   - now smon_rewrite01.
-Qed.
-
-
-(* TODO: Repolace original in Init.v. *)
-Proposition asBool_decide' P {DP: Decidable P} : Is_true (as_bool (decide P)) <-> P.
-Proof.
-  destruct (decide P) as [H|H]; now cbn.
 Qed.
 
 Definition sDefined u :=
@@ -781,36 +589,6 @@ Proof.
       * now apply Hv.
     + smon_rewrite.
   - smon_rewrite.
-Qed.
-
-(* TODO: Move to DSet.v and generalize. *)
-Proposition union_symmetric (u v: DSet B64) :
-  u ∪ v = v ∪ u.
-Proof.
-  apply extensionality.
-  intros x.
-  setoid_rewrite union_spec.
-  tauto.
-Qed.
-
-(* TODO: Move to after cong_mod. *)
-Corollary cong_zero n k : cong n (k * 2^n) 0.
-Proof.
-  transitivity ((k * 2^n) mod 2^n).
-  - symmetry. apply cong_mod. lia.
-  - apply eq_cong. apply Z_mod_mult.
-Qed.
-
-(* TODO: Move to after cong_proper_add. *)
-Corollary cong_eq n x y : cong n x y <-> cong n (x - y) 0.
-Proof.
-  split; intros H.
-  - transitivity (x + (-y)).
-    + apply eq_cong. lia.
-    + setoid_rewrite H. apply eq_cong. lia.
-  - transitivity ((x - y) + y).
-    + apply eq_cong. lia.
-    + setoid_rewrite H.  apply eq_cong. lia.
 Qed.
 
 Proposition addressable_64 n a : addressable n a <-> n <= 2^64.
@@ -902,7 +680,7 @@ Proof.
     rewrite <- sDefined_empty. f_equal.
     apply extensionality. intros a. cbn.
     split; [ tauto | ]. unfold member.
-    intros H. apply asBool_decide' in H. destruct H. lia.
+    intros H. apply asBool_decide in H. destruct H. lia.
 
   - setoid_rewrite popMany_S.
     setoid_rewrite to_list_action.
@@ -921,7 +699,7 @@ Proof.
       pushMany u);
     [ now smon_rewrite01 | ].
 
-    setoid_rewrite <- (confined_popMany' sp n _).
+    setoid_rewrite <- (confined_popMany sp n _).
     + rewrite (semiNeutral_put_put MEM (defined _)).
       rewrite bind_assoc.
       setoid_rewrite IHn.
@@ -951,7 +729,7 @@ Proof.
         intros x [Hu Ha].
         subst a u.
         unfold nAfter, singleton, def, member in Hu, Ha.
-        apply asBool_decide' in Hu, Ha.
+        apply asBool_decide in Hu, Ha.
         destruct Hu as [i [Hi Hi']].
         subst x.
 
@@ -984,7 +762,7 @@ Qed.
       defined (toB64 (n + sp));;
       pushMany u).
     + now smon_rewrite01.
-    + setoid_rewrite <- (confined_popMany' sp n _);
+    + setoid_rewrite <- (confined_popMany sp n _);
       [ | eapply (confined_neutral _ (Hmx := confined_defined _)) ].
       rewrite (semiNeutral_put_put MEM (defined _)).
       rewrite bind_assoc.
@@ -1032,7 +810,7 @@ Proof.
       defined (toB64 (n + sp));;
       pushMany u).
     + now smon_rewrite01.
-    + setoid_rewrite <- (confined_popMany' sp n _);
+    + setoid_rewrite <- (confined_popMany sp n _);
       [ | eapply (confined_neutral _ (Hmx := confined_defined _)) ].
       rewrite (semiNeutral_put_put MEM (defined _)).
       rewrite bind_assoc.
@@ -1055,7 +833,7 @@ Proof.
         set (a := toB64 (n + sp)) in *.
         contradict Hn.
         specialize (H a).
-        rewrite asBool_decide' in H.
+        rewrite asBool_decide in H.
         apply H.
         exists n.
         split; [ lia | reflexivity ].
@@ -1130,20 +908,20 @@ Proof.
       put' MEM mem;;
       let* u := (put' SP sp;; popMany n) in
       pushMany u).
-    + setoid_rewrite <- (confined_popMany' sp n _).
+    + setoid_rewrite <- (confined_popMany sp n _).
 
     rewrite (lens_semiNeutral (sub_semiNeutral (semiNeutral_defined _) MEM)).
       smon_rewrite.
     sndMixer
     setoid_rewrite <- confined_defined.
-      setoid_rewrite (confined_popMany' sp n _).
+      setoid_rewrite (confined_popMany sp n _).
       smon_rewrite.
 
 
 
 
     + now smon_rewrite01.
-    + setoid_rewrite <- (confined_popMany' sp n _);
+    + setoid_rewrite <- (confined_popMany sp n _);
       [ | eapply (confined_neutral _ (Hmx := confined_defined _)) ].
 
 
@@ -1157,7 +935,7 @@ Proof.
       defined (toB64 (n + sp));;
       pushMany u).
     + now smon_rewrite01.
-    + setoid_rewrite <- (confined_popMany' sp n _);
+    + setoid_rewrite <- (confined_popMany sp n _);
       [ | eapply (confined_neutral _ (Hmx := confined_defined _)) ].
 
 

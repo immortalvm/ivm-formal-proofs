@@ -91,6 +91,14 @@ Proof.
 
 (******)
 
+(** By putting [swallow] after [wipeStack] we ensure that [stdStart] fails
+    if the operations overlap with (the relevant parts of) the stack. *)
+Definition stdStart m n {o} (ops: vector Z o) : M (vector B64 n) :=
+  let* v := popN n in
+  wipeStack (m + n);;
+  swallow ops;;
+  ret v.
+
 Lemma stdStart_lemma m n {o} (ops: vector Z o) :
   stdStart m n ops =
     let* sp := get' SP in
@@ -108,7 +116,7 @@ Lemma stdStart_lemma m n {o} (ops: vector Z o) :
 Proof.
   unfold stdStart.
   rewrite popN_spec, popMany_spec, swallow_spec.
-  unfold wipeStack, wipe'.
+  unfold wipeStack, wipe.
 
   repeat setoid_rewrite bind_assoc.
   setoid_rewrite ret_bind.
@@ -354,9 +362,9 @@ Proof.
 Qed.
 
 Proposition wipe_wiped u :
-  wipe' u ⊑ wiped u.
+  wipe u ⊑ wiped u.
 Proof.
-  unfold wipe', wipe, wiped, isWiped.
+  unfold wipe, wiped, isWiped.
   rel_extensional_1.
   {
     crush.
