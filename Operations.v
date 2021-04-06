@@ -908,7 +908,7 @@ Module Core (MP: MachineParameters).
 
   Proposition pushMany_one x : pushMany [x] = push x.
   Proof.
-    cbn. smon_rewrite.
+    unfold pushMany. cbn. simp pushManyR. smon_rewrite.
   Qed.
 
   Corollary pushMany_action u v : pushMany (u ++ v) = pushMany v;; pushMany u.

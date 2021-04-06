@@ -60,7 +60,7 @@ Section DSet_section.
   Qed.
 
   (* TODO: Make global? *)
-  Instance subset_transitive : Transitive subset.
+  #[global] Instance subset_transitive : Transitive subset.
   Proof.
     intros u v w Huv Hvw
            x Hu.
@@ -174,7 +174,7 @@ Section DSet_section.
   Qed.
 
   Proposition union_symmetric (u v: DSet) :
-    u ∪ v = v ∪ u.
+    (u ∪ v = v ∪ u)%DSet.
   Proof.
     apply extensionality. intros x.
     setoid_rewrite union_spec. tauto.

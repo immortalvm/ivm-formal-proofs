@@ -124,7 +124,7 @@ Section basics_section.
         let* x := mx in
         f x) in
       g yy).
-    - smon_rewrite. (* TODO *)
+    - now rewrite bind_assoc.
     - now setoid_rewrite H.
   Qed.
 
@@ -136,9 +136,7 @@ Section basics_section.
   Proof.
     setoid_rewrite bind_unit.
     setoid_rewrite (bind_unit (put s') _).
-    setoid_rewrite <- bind_assoc.
-    setoid_rewrite put_put.
-    reflexivity.
+    apply (collapse_bind_lift (put_put s s')).
   Qed.
 
   Proposition put_get' s Y (f: unit -> S -> M Y) :
@@ -148,8 +146,9 @@ Section basics_section.
              f tt s.
   Proof.
     setoid_rewrite bind_unit.
-    setoid_rewrite <- bind_assoc.
-    setoid_rewrite put_get.
+    set (H := collapse_bind_lift (put_get s) (f tt)).
+    cbn in H.
+    rewrite H.
     setoid_rewrite bind_assoc.
     setoid_rewrite ret_bind.
     reflexivity.
@@ -1014,10 +1013,11 @@ Section SemiNeutral_section.
   Context {S M} {SM: SMonad S M}.
 
   Class SemiNeutral {X} (m: Mixer S) (mx: M X) : Prop :=
-    neutral : mx =  let* s := get in
-                    let* x := mx in
-                    putM m s;;
-                    ret x.
+    semiNeutral : mx =
+                      let* s := get in
+                      let* x := mx in
+                      putM m s;;
+                      ret x.
 
   #[global] Instance sub_semiNeutral
           {X} {m: Mixer S} {mx: M X}

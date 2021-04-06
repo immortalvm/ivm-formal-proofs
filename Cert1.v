@@ -35,7 +35,6 @@ Proposition wipe_swallow_precondition' u {n} (ops: vector Z n) :
                 swallow ops.
 Proof.
   rewrite wipe_swallow_precondition.
-  setoid_rewrite simplify_assume.
   transitivity (
     let* pc := get' PC in
     assume' (u # nAfter n pc);;
@@ -53,15 +52,17 @@ Qed.
 
 (*********************)
 
+(* TODO: Is this useful? *)
 Definition clearMem (mem: Memory) (a: Addr) (n: nat) : Memory :=
   update (Lens := restrLens (nAfter n a)) mem (fun _ _ _ => None).
 
 Proposition wipe_nAfter a n :
   wipe (nAfter n a) =
+    assume' (nAfter n a ⊆ available);;
     let* mem := get' MEM in
     put' MEM (clearMem mem a n).
 Proof.
-  unfold wipe.
+  rewrite wipe_spec.
   repeat rewrite put_spec. cbn.
   repeat rewrite get_spec. cbn.
   smon_rewrite.
@@ -90,51 +91,6 @@ Proof.
   - apply Hfg.
   - apply Hst_mem.
 Qed.
-
-(********)
-
-(* Finitely enumerable, equivalent to Coq.Logic.FinFun.Finite. *)
-Class SFinite X : Type :=
-{
-  SFinite_n : N;
-  SFinite_f : forall i, (i < SFinite_n)%N -> X;
-  SFinite_p : forall x, exists i Hi, SFinite_f i Hi = x;
-}.
-
-#[refine]
-Instance bits_sfinite n : SFinite (Bits n) :=
-{
-  SFinite_n := 2 ^ n;
-  SFinite_f i _ := toBits n i;
-}.
-Proof.
-  intros x. exists x, (bitsToN_bound x).
-  apply fromBits_toBits'.
-Qed.
-
-(****)
-
-Instance sfinite_decidable_all
-    {X} {SF: SFinite X}
-    (P: X -> Prop) {DP: forall x, Decidable (P x)} :
-  Decidable (forall x, P x).
-Proof.
-  enough (
-    (forall x, P x) <->
-    (forall i (Hi: (i < SFinite_n)%N),
-      P (SFinite_f i Hi))) as H;
-  [ unshelve eapply (decidable_transfer H) | ].
-  split.
-  - intros H i Hi. apply H.
-  - intros H x.
-    destruct (SFinite_p x) as [i [Hi Hp]].
-    specialize (H i Hi).
-    rewrite Hp in H.
-    exact H.
-Qed.
-
-Definition isWiped (u: DSet Addr) (m: Memory) :=
-  forall a (Hau: a ∈ u), exists (Ha: available a), m a Ha = None.
 
 (******************************)
 

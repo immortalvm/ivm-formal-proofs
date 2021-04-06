@@ -161,7 +161,7 @@ Definition nCertN n {X} (mx: M X) := nCert n (mx;; not_terminated).
 Definition swallow1 (op: Z) : M unit :=
   let* pc := get' PC in
   let* x := load pc in
-  assume (x = toB8 op);;
+  assume' (x = toB8 op);;
   put' PC (offset 1 pc).
 
 Equations swallow {n} (ops: vector Z n) : M unit :=
@@ -169,6 +169,17 @@ Equations swallow {n} (ops: vector Z n) : M unit :=
   swallow (op :: rest) :=
     swallow1 op;;
     swallow rest.
+
+(* TODO: Move *)
+Lemma assume_cons' {A} (EA: EqDec A) (a a': A) n (u u': vector A n) {X} (mx: M X) :
+  assume' (a :: u = a' :: u');;
+  mx = assume' (a = a');;
+       assume' (u = u');;
+       mx.
+  Proof.
+    repeat setoid_rewrite <- simplify_assume.
+    apply assume_cons.
+  Qed.
 
 Lemma swallow_spec {n} (ops: vector Z n) :
   swallow ops = let* pc := get' PC in
@@ -202,7 +213,7 @@ Proof.
     simpl Vector.map.
 
     unfold Cells. (* TODO: How can we avoid having to remember this everywhere? *)
-    setoid_rewrite assume_cons.
+    setoid_rewrite assume_cons'.
     destruct (decide (op = toB8 z)) as [Hop|Hop]; [ | smon_rewrite ].
     subst op.
     destruct (decide _) as [Hu|Hu]; [ | smon_rewrite ].
@@ -858,24 +869,74 @@ Qed.
 
 (************************)
 
+(* Finitely enumerable, equivalent to Coq.Logic.FinFun.Finite. *)
+Class SFinite X : Type :=
+{
+  SFinite_n : N;
+  SFinite_f : forall i, (i < SFinite_n)%N -> X;
+  SFinite_p : forall x, exists i Hi, SFinite_f i Hi = x;
+}.
+
+#[refine]
+Instance bits_sfinite n : SFinite (Bits n) :=
+{
+  SFinite_n := 2 ^ n;
+  SFinite_f i _ := toBits n i;
+}.
+Proof.
+  intros x. exists x, (bitsToN_bound x).
+  apply fromBits_toBits'.
+Qed.
+
+(****)
+
+Instance sfinite_decidable_all
+    {X} {SF: SFinite X}
+    (P: X -> Prop) {DP: forall x, Decidable (P x)} :
+  Decidable (forall x, P x).
+Proof.
+  enough (
+    (forall x, P x) <->
+    (forall i (Hi: (i < SFinite_n)%N),
+      P (SFinite_f i Hi))) as H;
+  [ unshelve eapply (decidable_transfer H) | ].
+  split.
+  - intros H i Hi. apply H.
+  - intros H x.
+    destruct (SFinite_p x) as [i [Hi Hp]].
+    specialize (H i Hi).
+    rewrite Hp in H.
+    exact H.
+Qed.
+
+Definition isWiped (u: DSet Addr) (m: Memory) :=
+  forall a (Hau: a ∈ u), exists (Ha: available a), m a Ha = None.
+
+(********)
+
 (** ** Mark memory as undefined *)
 Definition wipe (u: DSet Addr) : M unit :=
   assume' (u ⊆ available);;
   put' (MEM' u) (fun _ _ _ => None).
 
-(* TODO: Remove *)
-Goal forall u, Confined (MEM' u) (wipe u).
-  typeclasses eauto.
-Qed.
+Definition wipe_spec := unfolded_eq (@wipe).
 
 Proposition wipe_empty : wipe ∅ = ret tt.
-Proof. apply put_empty. Qed.
+Proof.
+  unfold wipe.
+  rewrite put_empty.
+  destruct (decide _) as [H|H].
+  - now rewrite ret_bind.
+  - contradict H. unfold subset. intros a Ha. contradict Ha.
+Qed.
 
 Proposition wipe_mono u v (H: u ⊆ v) : wipe v ⊑ wipe u.
 Proof.
   unfold wipe. do 2 rewrite put_spec. cbn.
-  unfold restr. crush.
-  apply update_MEM_propR; [ exact Hst | ]. crush.
+  unfold restr. crush; [ | contradict HR; now transitivity v ].
+
+  apply update_MEM_propR; [ exact Hst | ].
+  crush.
   specialize (H a). cbv. cbv in H.
   destruct (v a) eqn:Hva; [ exact I | ].
   destruct (u a) eqn:Hua.
@@ -896,6 +957,8 @@ Instance confined_wipe u : Confined (MEM' u) (wipe u).
 Proof.
   typeclasses eauto.
 Qed.
+
+#[global] Opaque wipe.
 
 (***********)
 
@@ -966,14 +1029,12 @@ Qed.
 
 Proposition wipe_load {u a} (Ha: a ∈ u) : wipe u;; load a = err.
 Proof.
-  unfold wipe.
+  rewrite wipe_spec.
   rewrite load_spec''.
   setoid_rewrite confined_get; [ | typeclasses eauto ].
   smon_rewrite.
-  rewrite <- bind_assoc.
-  rewrite mem_put_get''.
-  - smon_rewrite.
-  - exact Ha.
+  rewrite (collapse_bind_lift (mem_put_get'' Ha _)).
+  smon_rewrite.
 Qed.
 
 Proposition put_to_get'
@@ -1032,7 +1093,6 @@ Proof.
   intros a a' Ha. destruct Ha.
   apply (rel_extensional' MEM). intros mem mem' Hm.
 
-  setoid_rewrite simplify_assume.
   setoid_rewrite confined_put.
   2,3:
     apply (confined_neutral (m':=MEM)); (* TODO *)
@@ -1059,27 +1119,35 @@ Qed.
 
 (***********)
 
-(* TODO: Duplicate *)
-Ltac simplify_assume := setoid_rewrite simplify_assume.
+(* TODO: Move *)
+Instance disjoint_proper' X : Proper (eq --> eq --> iff) (@disjoint X).
+Proof.
+  intros u u' Hu
+         v v' Hv.
+         Set Printing All.
+  unfold flip in *.
+  now subst.
+Qed.
 
 Proposition wipe_swallow_precondition u {n} (ops: vector Z n) :
   wipe u;;
   swallow ops = let* pc := get' PC in
-                assume (u # nAfter n pc);;
+                assume' (u # nAfter n pc);;
                 wipe u;;
                 swallow ops.
 Proof.
   induction ops using vec_rev_ind.
   {
-    simplify_assume.
     smon_ext s.
     unfold Addr.
     rewrite get_spec.
     smon_rewrite.
     apply bind_extensional. intros [].
-    rewrite decide_true.
-    - now rewrite ret_tt_bind.
-    - now rewrite nAfter_empty.
+    rewrite wipe_spec.
+    destruct (decide (u ⊆ _)) as [H|H]; [ | now smon_rewrite01 ].
+    setoid_rewrite ret_tt_bind.
+    rewrite decide_true; [ | now rewrite nAfter_empty ].
+    now rewrite ret_tt_bind.
   }
   simp swallow.
   rewrite <- bind_assoc.
@@ -1116,7 +1184,6 @@ Proof.
     setoid_rewrite -> bind_assoc at 1.
 
     apply err_less_eq.
-    setoid_rewrite simplify_assume.
     transitivity (
       put' PC pc;;
       (let* pc := get' PC in
@@ -1129,7 +1196,7 @@ Proof.
     ).
     - apply bind_propr'; [ apply putPc_propr; reflexivity | ].
       intros [] [] _. apply bind_propr'; [ apply swallow_n | ].
-      intros [] [] _. crush. unfold wipe.
+      intros [] [] _. crush. rewrite wipe_spec.
 
       rewrite (put_spec (MEM' u)).
       cbn.
