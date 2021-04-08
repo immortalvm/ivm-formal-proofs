@@ -141,6 +141,18 @@ Ltac decided H :=
            subst HH)
   | exfalso; exact (HH H) ].
 
+Ltac undecided H :=
+  match type of H with
+  | ~ ?P =>
+    let HH := fresh in
+    destruct (decide P) as [HH|HH];
+    [ contradict H; exact HH
+    | try (clear HH
+      || let HHH := fresh in
+         set (HHH := is_true_unique HH H);
+         subst HH) ]
+  end.
+
 Section decidable_connectives.
 
   Context {P} {DP: Decidable P}.

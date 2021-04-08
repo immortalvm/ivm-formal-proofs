@@ -366,7 +366,7 @@ Section mixer_section.
     put (m s' s).
 
   Definition putM_spec := unfolded_eq (@putM).
-  Definition putM_spec' {m} a := unfolded_eq (@putM m a).
+  Definition putM_spec' {m} a := unfolded_eq (@putM m a). (* TODO: Useful? *)
 
   Proposition putM_specL {A} (L: Lens S A) (s: S) :
     putM L s = put' L (proj s).
@@ -1019,7 +1019,7 @@ Section SemiNeutral_section.
                       putM m s;;
                       ret x.
 
-  #[global] Instance sub_semiNeutral
+  Instance sub_semiNeutral
           {X} {m: Mixer S} {mx: M X}
           (Hmx: SemiNeutral m mx)
           (m': Mixer S) {Hm: (m'|m)} : SemiNeutral m' mx.

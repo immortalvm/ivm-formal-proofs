@@ -196,12 +196,18 @@ Section independence_section.
   Qed.
 
 
+  (** Indicate canonical "direction" *)
+
+  Class Independent0 (f g: Mixer A) :=
+    independent0 :> Independent f g.
+
+
   (** The following is used to add symmetry hints while avoiding loops. *)
 
   Context (f g: Mixer A).
 
   Class Independent' :=
-    independent' : Independent f g.
+    independent' : Independent0 f g.
 
   #[global] Instance independent_forward (Hi: Independent f g): Independent' := Hi.
 
@@ -240,7 +246,9 @@ Proof.
   exact H.
 Qed.
 
-#[export] Hint Mode Independent ! ! - : typeclass_instances.
+#[export] Hint Mode Independent0 ! ! - : typeclass_instances.
+#[export] Hint Mode Independent0 ! - ! : typeclass_instances.
+#[export] Hint Mode Independent  ! ! - : typeclass_instances.
 #[export] Hint Mode Independent' ! ! - : typeclass_instances.
 #[export] Hint Mode Independent' ! - ! : typeclass_instances.
 
@@ -296,12 +304,12 @@ Ltac mixer_rewrite1 :=
         [ typeclasses eauto
         | setoid_rewrite (H _ _ _) ]
 
-      | assert (Independent f g) as H;
+      | assert (Independent0 f g) as H;
         (* f (g x z) y  ~>  g (f x y) z *)
         [ typeclasses eauto
         | setoid_rewrite (H _ _ _) ]
 
-      | assert (Independent g f) as H;
+      | assert (Independent0 g f) as H;
         (* g (f x y) x  ~>  f x y *)
         [ typeclasses eauto
         | setoid_rewrite (@independent_left _ g f H) ] ]
@@ -426,7 +434,7 @@ Section prod_section.
 
   Context {A} (f g: Mixer A) {Hi: Independent' f g}.
 
-  Instance ind_prod : Independent f g := independent' Hi.
+  Instance ind_prod : Independent0 f g := independent' Hi.
 
   #[refine] #[global] Instance prodMixer : Mixer A :=
   {

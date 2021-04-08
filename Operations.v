@@ -145,49 +145,49 @@ Module Core (MP: MachineParameters).
     on the symmetry of [Independent] later (which easily leads to inifinite
     loops). *)
 
-    independent_MEM_IMAGE: Independent MEM OUT_IMAGE;
-    independent_MEM_BYTES: Independent MEM OUT_BYTES;
-    independent_MEM_CHARS: Independent MEM OUT_CHARS;
-    independent_MEM_SOUND: Independent MEM OUT_SOUND;
-    independent_MEM_LOG:   Independent MEM LOG;
-    independent_MEM_INP:   Independent MEM INP;
-    independent_MEM_PC:    Independent MEM PC;
-    independent_MEM_SP:    Independent MEM SP;
+    independent_MEM_IMAGE: Independent0 MEM OUT_IMAGE;
+    independent_MEM_BYTES: Independent0 MEM OUT_BYTES;
+    independent_MEM_CHARS: Independent0 MEM OUT_CHARS;
+    independent_MEM_SOUND: Independent0 MEM OUT_SOUND;
+    independent_MEM_LOG:   Independent0 MEM LOG;
+    independent_MEM_INP:   Independent0 MEM INP;
+    independent_MEM_PC:    Independent0 MEM PC;
+    independent_MEM_SP:    Independent0 MEM SP;
 
-    independent_IMAGE_BYTES: Independent OUT_IMAGE OUT_BYTES;
-    independent_IMAGE_CHARS: Independent OUT_IMAGE OUT_CHARS;
-    independent_IMAGE_SOUND: Independent OUT_IMAGE OUT_SOUND;
-    independent_IMAGE_LOG:   Independent OUT_IMAGE LOG;
-    independent_IMAGE_INP:   Independent OUT_IMAGE INP;
-    independent_IMAGE_PC:    Independent OUT_IMAGE PC;
-    independent_IMAGE_SP:    Independent OUT_IMAGE SP;
+    independent_IMAGE_BYTES: Independent0 OUT_IMAGE OUT_BYTES;
+    independent_IMAGE_CHARS: Independent0 OUT_IMAGE OUT_CHARS;
+    independent_IMAGE_SOUND: Independent0 OUT_IMAGE OUT_SOUND;
+    independent_IMAGE_LOG:   Independent0 OUT_IMAGE LOG;
+    independent_IMAGE_INP:   Independent0 OUT_IMAGE INP;
+    independent_IMAGE_PC:    Independent0 OUT_IMAGE PC;
+    independent_IMAGE_SP:    Independent0 OUT_IMAGE SP;
 
-    independent_BYTES_CHARS: Independent OUT_BYTES OUT_CHARS;
-    independent_BYTES_SOUND: Independent OUT_BYTES OUT_SOUND;
-    independent_BYTES_LOG:   Independent OUT_BYTES LOG;
-    independent_BYTES_INP:   Independent OUT_BYTES INP;
-    independent_BYTES_PC:    Independent OUT_BYTES PC;
-    independent_BYTES_SP:    Independent OUT_BYTES SP;
+    independent_BYTES_CHARS: Independent0 OUT_BYTES OUT_CHARS;
+    independent_BYTES_SOUND: Independent0 OUT_BYTES OUT_SOUND;
+    independent_BYTES_LOG:   Independent0 OUT_BYTES LOG;
+    independent_BYTES_INP:   Independent0 OUT_BYTES INP;
+    independent_BYTES_PC:    Independent0 OUT_BYTES PC;
+    independent_BYTES_SP:    Independent0 OUT_BYTES SP;
 
-    independent_CHARS_SOUND: Independent OUT_CHARS OUT_SOUND;
-    independent_CHARS_LOG:   Independent OUT_CHARS LOG;
-    independent_CHARS_INP:   Independent OUT_CHARS INP;
-    independent_CHARS_PC:    Independent OUT_CHARS PC;
-    independent_CHARS_SP:    Independent OUT_CHARS SP;
+    independent_CHARS_SOUND: Independent0 OUT_CHARS OUT_SOUND;
+    independent_CHARS_LOG:   Independent0 OUT_CHARS LOG;
+    independent_CHARS_INP:   Independent0 OUT_CHARS INP;
+    independent_CHARS_PC:    Independent0 OUT_CHARS PC;
+    independent_CHARS_SP:    Independent0 OUT_CHARS SP;
 
-    independent_SOUND_LOG: Independent OUT_SOUND LOG;
-    independent_SOUND_INP: Independent OUT_SOUND INP;
-    independent_SOUND_PC:  Independent OUT_SOUND PC;
-    independent_SOUND_SP:  Independent OUT_SOUND SP;
+    independent_SOUND_LOG: Independent0 OUT_SOUND LOG;
+    independent_SOUND_INP: Independent0 OUT_SOUND INP;
+    independent_SOUND_PC:  Independent0 OUT_SOUND PC;
+    independent_SOUND_SP:  Independent0 OUT_SOUND SP;
 
-    independent_LOG_INP: Independent LOG INP;
-    independent_LOG_PC:  Independent LOG PC;
-    independent_LOG_SP:  Independent LOG SP;
+    independent_LOG_INP: Independent0 LOG INP;
+    independent_LOG_PC:  Independent0 LOG PC;
+    independent_LOG_SP:  Independent0 LOG SP;
 
-    independent_INP_PC: Independent INP PC;
-    independent_INP_SP: Independent INP SP;
+    independent_INP_PC: Independent0 INP PC;
+    independent_INP_SP: Independent0 INP SP;
 
-    independent_PC_SP: Independent PC SP;
+    independent_PC_SP: Independent0 PC SP;
   }.
 
  Section core_section.
@@ -478,6 +478,12 @@ Module Core (MP: MachineParameters).
 
   Definition nAfter (n: nat) (a: Addr) : DSet Addr :=
     def (fun a' => exists i, (i<n)%nat /\ offset i a = a').
+
+  Proposition nAfter_spec x n a :
+    x ∈ nAfter n a <-> exists i, (i < n)%nat /\ offset i a = x.
+  Proof.
+    now setoid_rewrite asBool_decide.
+  Qed.
 
   Proposition nAfter_head n a : a ∈ nAfter (S n) a.
   Proof.
