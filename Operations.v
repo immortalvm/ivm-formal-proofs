@@ -86,7 +86,7 @@ Module Type MachineParameters.
   than [Declare Instance] for some reason. *)
   Parameter Inline H_eqdec: EqDec Addr.
   Parameter Inline available: Addr -> bool.
-  Parameter Inline offset: Z -> Addr -> Addr.
+  Parameter offset: Z -> Addr -> Addr.
   Parameter Inline offset_action: Z_action offset.
   Parameter Inline Cell: Type.
 

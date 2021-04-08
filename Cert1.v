@@ -368,12 +368,9 @@ Proof.
   setoid_rewrite lens_put_get.
   setoid_rewrite lens_put_put.
   setoid_rewrite <- confined_load.
-  assert (toB64 (-1 + toB64 (1 + sp)) = sp) as Hsp.
-  -
-    transitivity (offset (-1) (offset 1 sp)).
-    + reflexivity.
-    + rewrite <- Z_action_add. cbn. apply Z_action_zero.
-  - now rewrite Hsp, load_store.
+  rewrite <- Z_action_add.
+  cbn. rewrite Z_action_zero.
+  now rewrite load_store.
 Qed.
 
 (***)
@@ -430,7 +427,7 @@ Proposition popMany_getSP n {X} (f: Cells n -> B64 -> M X) :
   f u sp =
     let* sp := get' SP in
     let* u := popMany n in
-    f u (toB64 (n + sp)).
+    f u (offset n sp).
 Proof.
   setoid_rewrite popMany_spec.
   smon_rewrite01.
@@ -739,7 +736,6 @@ Proof. (* TODO: Simplify *)
           intros a Ha.
           rewrite nAfter_spec in Ha.
           destruct Ha as [i [Hi Hi']].
-          change (toB64 _) with (offset i sp) in Hi'.
           by_lia (i = 0 \/ (i - 1) + 1 = i)%nat as Hii.
           destruct Hii as [Hii|Hii].
           ++ rewrite Hii in Hi'.
@@ -747,7 +743,6 @@ Proof. (* TODO: Simplify *)
             destruct Hi'. exists Hsp. exact Hm.
           ++ apply H1. rewrite nAfter_spec.
             exists (i - 1)%nat.
-            change (toB64 _) with (offset (i - 1)%nat (offset 1 sp)).
             split.
             ** lia.
             ** rewrite <- Hi'.
