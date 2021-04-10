@@ -103,7 +103,7 @@ Section restriction_section.
   Qed.
 
 
-  (** ** Point lenses, [restrLens {a}] simplified *)
+  (** ** Point lenses, [restrLens !{a}] simplified *)
 
   Context {H_eqdec: EqDec A}.
 
